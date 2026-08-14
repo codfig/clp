@@ -125,11 +125,13 @@ caminho/para/arquivo
 C:\Users\orlando\aula1
 pergunta? resposta!
 ponto.final
+ponto-final
 til~aqui
 acento^circunflexo
 pipe|separador
 barra\invertida
 aspas "duplas" e 'simples'
+ele disse "sim" e depois disse "nao" no mesmo dia
 hash # comentario
 e-mail: a@b.c
 

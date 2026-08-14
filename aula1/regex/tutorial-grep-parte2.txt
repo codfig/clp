@@ -1,0 +1,384 @@
+===============================================================================
+ EXPRESSOES REGULARES COM egrep - PARTE 2: TECNICAS AVANCADAS
+===============================================================================
+ Pre-requisito....: tutorial-grep-parte1.txt (temas 1 a 7)
+ Arquivos de dados: dados.txt e entrada.txt (mesma pasta)
+
+ A Parte 1 cobriu a sintaxe. A Parte 2 cobre o que se faz com ela: validar
+ dados reais, analisar logs, extrair campos - e saber onde a ferramenta
+ para de servir.
+
+ O entrada.txt tem dados SUJOS de proposito (e-mail sem TLD, IP invalido,
+ data com mes 22, telefone sem formatacao). Os exercicios de validacao usam
+ esse arquivo justamente porque ha o que rejeitar.
+
+===============================================================================
+ TEMA 8 - CLASSES POSIX [[:...:]]
+===============================================================================
+
+ Escrever [a-zA-Z0-9] funciona em ingles e quebra em portugues: "coracao" e
+ "atencao" tem letras fora do intervalo a-z. As classes POSIX resolvem isso
+ e dizem o que voce quer dizer.
+
+     [[:digit:]]   digitos            [[:alpha:]]   letras
+     [[:alnum:]]   letras e digitos   [[:upper:]]   maiusculas
+     [[:lower:]]   minusculas         [[:space:]]   espaco, tab, quebra
+     [[:blank:]]   espaco e tab       [[:punct:]]   pontuacao
+     [[:xdigit:]]  hexadecimal        [[:print:]]   imprimiveis
+
+ ATENCAO: os colchetes sao DUPLOS. A classe e [[:digit:]], nao [:digit:].
+ O par externo e o dos colchetes de conjunto; o interno faz parte do nome.
+ Por isso da para combinar: [[:upper:][:space:]] e "maiuscula ou espaco".
+
+     egrep -n '^[[:upper:][:space:]]+$' dados.txt
+     egrep -n '[[:punct:]]' dados.txt
+     egrep -n '^[[:alnum:]_]+$' dados.txt
+     egrep -n '0[xX][[:xdigit:]]+' dados.txt
+
+ CUIDADO - LOCALE
+ ----------------
+ O que [[:alpha:]] considera letra depende do locale do sistema. Com
+ LC_ALL=C, so as letras ASCII entram; com pt_BR.UTF-8, as acentuadas
+ tambem. Se um padrao funciona na sua maquina e falha na do colega, o
+ locale e o primeiro suspeito:
+
+     locale
+     LC_ALL=C egrep '[[:alpha:]]' dados.txt
+
+ EXERCICIOS
+ ----------
+ 8.1  Reescreva '[a-zA-Z]' usando classe POSIX e compare o resultado nas
+      linhas com acentuacao.
+ 8.2  Encontre as linhas formadas so por letras minusculas e espacos.
+ 8.3  Case as linhas que contem algum caractere de pontuacao E algum
+      digito.
+ 8.4  Rode o mesmo padrao com LC_ALL=C e com o seu locale normal. Onde a
+      saida muda?
+
+===============================================================================
+ TEMA 9 - LIMITES DE PALAVRA \b \< \> \w \s
+===============================================================================
+
+ Sao extensoes do GNU grep, nao fazem parte do POSIX. Muito uteis, mas nao
+ conte com elas fora do GNU (o grep do macOS pode nao ter todas).
+
+     \b   limite de palavra (comeco ou fim)
+     \<   inicio de palavra          \>   fim de palavra
+     \w   = [[:alnum:]_]             \W   o contrario
+     \s   espaco em branco           \S   o contrario
+
+     egrep -n '\bcat\b' dados.txt
+
+ Casa "cat" isolado, sem pegar "concatenar" nem "scatter". Repare que a
+ linha "gato scatter cat!" aparece: nela o "cat" final esta isolado, com o
+ "!" servindo de limite.
+
+     egrep -n '\<sub' dados.txt
+
+ Palavras que COMECAM com sub - inclusive "subiu" e "substituir", mas nao
+ "insubstituivel".
+
+     egrep -no 'ato\>' dados.txt
+     egrep -o '\w+\s\w+' dados.txt
+
+ \b VERSUS -w
+ ------------
+ A opcao -w faz o mesmo que cercar o padrao com \b, e e mais legivel. Use
+ \b quando precisar do limite em SO UM dos lados, ou no meio de um padrao
+ maior - la o -w nao serve.
+
+ EXERCICIOS
+ ----------
+ 9.1  Encontre as palavras que terminam em "cao".
+ 9.2  Extraia todas as palavras que comecam com maiuscula.
+ 9.3  Compare "egrep -w 'sub'" com "egrep '\<sub\>'". O resultado e o
+      mesmo? E com "egrep '\<sub'"?
+ 9.4  Extraia os pares "palavra espaco palavra" e conte quantos ha.
+ 9.5  Por que '\bcat\b' casa em "cat!" mas nao em "concatenar"? Descreva o
+      que e um limite de palavra.
+
+===============================================================================
+ TEMA 10 - ONDE O ERE PARA: GULOSO, PREGUICOSO E LOOKAHEAD
+===============================================================================
+
+ Este tema e sobre os LIMITES da ferramenta. Saber o que ERE nao faz vale
+ tanto quanto saber o que ele faz.
+
+ 1. NAO EXISTE QUANTIFICADOR PREGUICOSO
+ --------------------------------------
+ Em PCRE (Perl, Python, JavaScript) existe *? e +?, que pegam o MENOR
+ trecho. Em ERE, nao. A solucao e negar o delimitador, como na Parte 1:
+
+     egrep -o '".*"' dados.txt       # guloso: engole o meio
+     egrep -o '"[^"]*"' dados.txt    # o substituto do preguicoso
+
+ 2. NAO EXISTE LOOKAHEAD NEM LOOKBEHIND
+ --------------------------------------
+ Nao da para dizer "casa X somente se for seguido de Y, sem incluir o Y no
+ resultado". Em PCRE isso e (?=...) e (?<=...). Em ERE nao ha equivalente.
+
+ Quando voce precisar disso, ha tres saidas:
+
+   a) incluir o contexto no casamento e aceitar que ele sai junto:
+
+        egrep -o '[0-9]{2}:[0-9]{2}:[0-9]{2} INFO' dados.txt
+
+   b) encadear dois greps, um filtrando a linha e outro extraindo:
+
+        egrep 'INFO' dados.txt | egrep -o '[0-9]{2}:[0-9]{2}:[0-9]{2}'
+
+   c) usar PCRE de verdade, se o seu grep tiver:
+
+        grep -oP '[0-9:]{8}(?= INFO)' dados.txt
+
+ A opcao -P nao existe no grep do macOS e pode faltar em builds minimos.
+ Teste antes de depender dela:
+
+     echo abc123 | grep -P '\d+'
+
+ 3. REGEX NAO CONTA E NAO ANINHA
+ -------------------------------
+ Nenhuma expressao regular verifica se os parenteses de uma expressao estao
+ balanceados, porque isso exige memoria ilimitada. Linguagens com
+ aninhamento arbitrario nao sao regulares - precisam de um analisador
+ sintatico. Foi exatamente esse limite que apareceu na atividade do
+ analisador lexico (../lex e ../miniforth).
+
+ EXERCICIOS
+ ----------
+ 10.1  Extraia o conteudo entre parenteses das linhas de comentario, sem os
+       parenteses. O que acontece quando ha dois pares na mesma linha?
+ 10.2  Verifique se o seu grep tem -P. Se tiver, reescreva o exercicio
+       anterior com lookahead e lookbehind.
+ 10.3  Extraia so o nome de usuario das linhas de log (o texto depois de
+       "usuario "), usando a tecnica (b) de dois greps encadeados.
+ 10.4  Explique por que '.*' quase nunca e o que voce quer, e o que usar no
+       lugar.
+
+===============================================================================
+ TEMA 11 - BACK-REFERENCES \1 \2
+===============================================================================
+
+ \1 significa "o mesmo texto que o grupo 1 casou". E o unico recurso do
+ egrep que sai do territorio das linguagens regulares - com ele, a
+ ferramenta passa a reconhecer coisas que um automato finito nao reconhece.
+
+     egrep -n '^(.+)\1$' dados.txt
+
+ Linhas formadas por um trecho repetido duas vezes: abab, abcabc, 1212.
+ Repare que 12345678901234567890 tambem casa - e "1234567890" duas vezes.
+
+     egrep -n '\b(\w+) \1\b' dados.txt
+
+ Palavra repetida em sequencia. Este e o padrao mais util do tema: encontra
+ o erro de digitacao "o o gato" em qualquer texto.
+
+     egrep -on '([a-z])\1' dados.txt
+
+ Letra dobrada: rr, ss, ff, nn.
+
+ A numeracao segue a ordem dos PARENTESES DE ABERTURA, da esquerda para a
+ direita. Em '(a(b)c)' o grupo 1 e "abc" e o grupo 2 e "b".
+
+ Back-reference tambem serve para exigir CONSISTENCIA entre duas partes do
+ padrao - por exemplo, que o separador de uma data seja o mesmo nos dois
+ lugares:
+
+     egrep -on '(0[1-9]|[12][0-9]|3[01])([/-])(0[1-9]|1[0-2])\2[0-9]{4}' dados.txt
+
+ O \2 exige que o segundo separador seja igual ao primeiro, entao
+ "14/08-2026" e corretamente rejeitado.
+
+ CUIDADO - CUSTO
+ ---------------
+ Back-references podem ser lentas: o motor precisa testar e voltar atras
+ (backtracking). Em arquivos grandes, com padroes como '(.+)\1', o tempo
+ pode explodir. Use quando resolver o problema, nao por elegancia.
+
+ EXERCICIOS
+ ----------
+ 11.1  Encontre palavras que comecam e terminam com a mesma letra.
+ 11.2  Encontre linhas com tres letras iguais em sequencia.
+ 11.3  Escreva um padrao que case datas so quando o separador for
+       consistente, e teste com uma data mista que voce mesmo inventar.
+ 11.4  Encontre linhas onde a mesma palavra aparece duas vezes, mesmo com
+       outras palavras no meio.
+ 11.5  Por que '^(.+)\1$' casa "aa" e "aaaa", mas nao "aaa"?
+
+===============================================================================
+ TEMA 12 - VALIDACAO DE DADOS REAIS
+===============================================================================
+
+ Trabalhe com entrada.txt neste tema. Os dados tem erros plantados.
+
+ A logica de toda validacao e a mesma: ancore o que precisa ser exato,
+ enumere as faixas validas com alternancia, e teste contra dados que
+ DEVEM falhar.
+
+ E-MAIL (versao didatica, boa para o dia a dia)
+
+     egrep -oi '[[:alnum:]._%+-]+@[[:alnum:].-]+\.[a-z]{2,}' entrada.txt
+
+ O "\.[a-z]{2,}" no fim exige um TLD, e e o que rejeita "carla@gama".
+ Validar e-mail COMPLETAMENTE por regex e um problema classicamente
+ impossivel de fazer direito - a especificacao permite coisas absurdas.
+ Valide o formato basico e confirme por e-mail de verificacao.
+
+ DATA ISO com mes 01-12 e dia 01-31
+
+     egrep -on '[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])' dados.txt
+
+ HORA valida, com segundos opcionais
+
+     egrep -on '\b([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?\b' dados.txt
+
+ IPv4 - primeiro a versao INGENUA, que aceita 999.999.999.999:
+
+     egrep -on '([0-9]{1,3}\.){3}[0-9]{1,3}' entrada.txt
+
+ E agora a correta, com cada octeto de 0 a 255:
+
+     egrep -on '\b(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\b' entrada.txt
+
+ Compare as duas saidas. A diferenca entre elas e a licao inteira do tema:
+ uma regex que "funciona" nos dados bons pode aceitar lixo silenciosamente.
+
+ CUIDADO - VALIDAR NAO E VERIFICAR
+ ---------------------------------
+ Um CPF pode ter o formato perfeito e ser invalido: os dois ultimos digitos
+ sao calculados a partir dos outros nove. Regex verifica FORMATO, nunca
+ conteudo. O mesmo vale para 31/02/2026, que passa em qualquer regex de
+ data razoavel.
+
+ EXERCICIOS
+ ----------
+ 12.1  Extraia so os e-mails de dominio .com.br.
+ 12.2  Extraia os telefones com DDD entre parenteses, aceitando 8 ou 9
+       digitos.
+ 12.3  Liste as linhas com data de nascimento invalida (mes fora de 01-12
+       ou dia fora de 01-31).
+ 12.4  Extraia os precos em reais no formato R$ 1.234,56 e R$ 12,34.
+ 12.5  Escreva a regex de CEP nos dois formatos, com e sem hifen.
+ 12.6  Encontre um dado no entrada.txt que passe na sua regex mas seja
+       invalido na vida real. Explique por que regex nao pega esse caso.
+
+===============================================================================
+ TEMA 13 - ANALISE DE LOG E PIPELINES
+===============================================================================
+
+ Aqui o egrep deixa de ser um buscador e vira o primeiro estagio de uma
+ linha de montagem.
+
+     egrep -n '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' dados.txt
+
+ So as linhas que comecam com data - o jeito de separar log de comentario
+ num arquivo misto.
+
+     egrep -n '(ERROR|FATAL)' dados.txt
+
+ A opcao -C mostra o contexto, e num log e ela que revela a CAUSA:
+
+     egrep -n -C1 'FATAL' dados.txt
+
+ Veja o que veio antes e depois da falha. Um erro raramente se explica
+ sozinho.
+
+ PIPELINES CLASSICOS
+
+ Usuarios distintos que aparecem no log:
+
+     egrep -o 'usuario [a-z]+' dados.txt | sort -u
+
+ Frequencia por nivel de severidade:
+
+     egrep -o '(INFO|DEBUG|WARN|ERROR|FATAL)' dados.txt | sort | uniq -c | sort -rn
+
+ O idioma "sort | uniq -c | sort -rn" e a contagem de frequencia mais usada
+ em linha de comando. Decore: ordena, conta repetidos, ordena pela contagem
+ em ordem decrescente.
+
+ Percentuais de uso acima de 80%:
+
+     egrep -on '(8[0-9]|9[0-9]|100)%' dados.txt
+
+ CUIDADO - uniq PRECISA DE sort ANTES
+ ------------------------------------
+ O uniq so remove duplicatas ADJACENTES. Sem o sort antes, ele nao
+ encontra as repeticoes espalhadas pelo arquivo, e a contagem sai errada
+ sem nenhum aviso.
+
+ EXERCICIOS
+ ----------
+ 13.1  Liste as linhas de log entre 09:15 e 09:20, inclusive.
+ 13.2  Conte quantas vezes cada usuario aparece no log.
+ 13.3  Mostre as 2 linhas anteriores a cada ERROR.
+ 13.4  Extraia todos os enderecos IP:porta que aparecem em mensagens de
+       erro.
+ 13.5  Monte um pipeline que responda: qual o nivel de log mais frequente
+       depois de INFO?
+ 13.6  No entrada.txt, descubra em quantos segundos o deploy terminou,
+       extraindo o numero da linha correspondente.
+
+===============================================================================
+ TEMA 14 - CSV E EXTRACAO DE CAMPOS
+===============================================================================
+
+ Um CSV simples e uma sequencia de campos sem virgula, separados por
+ virgula. Isso se escreve direto:
+
+     egrep -n '^[^,]+,[^,]+,[^,]+,[^,]+$' dados.txt
+
+ O [^,]+ e o mesmo truque do guloso: nega o delimitador para nao atravessar
+ o campo seguinte.
+
+ Filtrar por valor de um campo exige ancorar a posicao. Salario acima de
+ 5000, que e o ultimo campo:
+
+     egrep -n ',[5-9][0-9]{3}\.[0-9]{2}$' dados.txt
+
+ Extrair o primeiro campo de cada linha:
+
+     egrep '^[A-Z][a-z]+ [A-Z][a-z]+,' dados.txt | egrep -o '^[^,]+'
+
+ Varios padroes de uma vez, com -e (equivale ao |):
+
+     egrep -n -e 'CPF' -e 'CNPJ' -e 'CEP' dados.txt
+
+ Busca recursiva em varios arquivos, listando so os nomes:
+
+     egrep -rl 'egrep' .
+
+ CUIDADO - CSV DE VERDADE NAO E REGULAR
+ --------------------------------------
+ Assim que um campo puder conter virgula dentro de aspas -
+ "Silva, Joao",34,SP - a linguagem deixa de ser reconhecivel por regex de
+ forma confiavel. Existe estado a lembrar (dentro ou fora das aspas), e
+ isso e trabalho de parser. Para CSV real use uma ferramenta que entenda o
+ formato: csvkit, awk com FPAT, ou uma biblioteca da sua linguagem.
+
+ EXERCICIOS
+ ----------
+ 14.1  Liste as pessoas com menos de 30 anos.
+ 14.2  Extraia so a coluna de cidade.
+ 14.3  Encontre as linhas com pelo menos DUAS virgulas.
+ 14.4  No entrada.txt, liste as pessoas nascidas antes de 1995.
+ 14.5  Monte um pipeline que calcule quantas pessoas ha por cidade.
+ 14.6  Escreva uma linha de CSV que quebre a sua regex do exercicio 14.1 e
+       explique por que ela quebra.
+
+===============================================================================
+ ENCERRAMENTO
+===============================================================================
+ Voce cobriu: sintaxe (Parte 1), classes POSIX, limites de palavra, os
+ limites do proprio ERE, back-references, validacao, analise de log e
+ extracao de campos.
+
+ As tres ideias que sobrevivem a qualquer ferramenta:
+
+ 1. Ancore o que precisa ser exato. Sem ^ e $, egrep casa SUBSTRING, e
+    quase todo falso positivo vem daí.
+ 2. Negue o delimitador em vez de usar .* - e a solucao para o guloso e
+    para campos delimitados.
+ 3. Teste contra dados que DEVEM falhar. Uma regex so esta validada quando
+    voce viu ela rejeitar o lixo, nao quando viu ela aceitar o que e bom.
+===============================================================================
