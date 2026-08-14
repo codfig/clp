@@ -1,0 +1,16 @@
+# Normaliza o fim de linha do material do curso.
+# Sem isto, com core.autocrlf=true o Windows entrega os arquivos com CRLF e o
+# \r invisivel no fim de cada linha quebra os exercicios de regex com ancora $
+# (ex.: egrep 'fim$' nao casa nada).
+
+* text=auto
+
+# Material didatico: sempre LF, em qualquer sistema.
+aula1/** text eol=lf
+*.fs      text eol=lf
+*.sh      text eol=lf
+
+# Arquivos de projeto do Windows mantem CRLF.
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
