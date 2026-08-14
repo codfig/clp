@@ -1,0 +1,30 @@
+( exemplo.mf - programa MiniForth que exercita as 4 classes lexicas )
+
+( MiniForth so tem:
+  CONTROLE  : ; IF ELSE THEN
+  OPERADOR  + - * / DUP DROP SWAP OVER @ ! . CR
+  INTEIRO   42  -17  +58
+  PALAVRA   qualquer outra coisa
+  e este comentario, que pode atravessar varias linhas )
+
+: QUADRADO DUP * ;
+
+: DOBRO 2 * ;
+
+: SOMA-QUADRADOS ( a b -- a2+b2 ) QUADRADO SWAP QUADRADO + ;
+
+: SINAL 0 IF . ELSE DROP THEN CR ;
+
+: MEDIA + 2 / ;
+
+7 QUADRADO . CR
+3 4 SOMA-QUADRADOS . CR
+-17 DOBRO . CR
++58 10 MEDIA . CR
+
+( casos limite do analisador )
+12ABC        ( NAO e o inteiro 12 seguido de ABC: e uma palavra so )
+-            ( o sinal sozinho e o operador de subtracao )
+.            ( o ponto sozinho e o operador de impressao )
+-42          ( ja este e um inteiro negativo )
+minha-palavra  outra?  x2  <=>

@@ -1,0 +1,3 @@
+: OK 1 2 + ;
+( comentario sem fechar
+: DEPOIS 3 . ;
