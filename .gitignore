@@ -1,0 +1,73 @@
+# ---- Sistema operacional ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+
+# ---- Editores e IDEs ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+# ---- Ferramentas ----
+.claude/settings.local.json
+
+# ---- Binarios e objetos compilados ----
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+a.out
+
+# ---- Forth (gforth) ----
+*.fi
+
+# ---- C / C++ ----
+*.gch
+*.pch
+*.d
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# ---- Java ----
+*.class
+*.jar
+target/
+
+# ---- Haskell / OCaml / Lisp ----
+*.hi
+*.cmi
+*.cmo
+*.cmx
+*.fasl
+
+# ---- Prolog / Erlang ----
+*.qlf
+*.beam
+
+# ---- Node ----
+node_modules/
+
+# ---- Saidas e temporarios ----
+build/
+dist/
+out/
+*.log
+*.tmp
+*.bak
+*.orig

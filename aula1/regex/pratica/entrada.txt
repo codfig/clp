@@ -1,0 +1,29 @@
+ID,NOME,EMAIL,TELEFONE,NASCIMENTO,SALARIO
+001,Ana Ribeiro,ana.ribeiro@alfa.com.br,(11) 98877-6655,12/03/1990,4500.00
+002,Bruno Tavares,bruno_t@beta.org,(21) 3344-5566,05/11/1985,7800.50
+003,Carla Nunes,carla@gama,(31) 99123-4567,30/07/2001,2100.75
+004,Diego Farias,diego.farias@delta.net,1155443322,22/22/1999,9300.00
+005,Elisa Moraes,elisa+trabalho@epsilon.com,(85) 98765-4321,01/01/2000,3150.25
+
+192.168.10.4    servidor-web      ativo
+10.0.0.7        banco-de-dados    ativo
+300.1.1.1       host-invalido     inativo
+172.16.0.99     cache-redis       ativo
+
+2026-08-14 08:00:01 INFO  deploy iniciado versao 2.14.0
+2026-08-14 08:00:45 WARN  certificado expira em 9 dias
+2026-08-14 08:02:13 ERROR falha no health check de 10.0.0.7:6379
+2026-08-14 08:02:14 ERROR retry 1 de 3
+2026-08-14 08:03:50 INFO  deploy concluido em 229 s
+
+produto: teclado    preco: R$ 149,90   estoque: 27
+produto: monitor    preco: R$ 1.299,00 estoque: 5
+produto: mouse      preco: R$ 79,90    estoque: 143
+produto: webcam     preco: R$ 0,00     estoque: 0
+
+arquivo_2026_08_14.log
+backup-2026-08-13.tar.gz
+notas.TXT
+relatorio final.pdf
+.gitignore
+script.sh

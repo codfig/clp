@@ -1,0 +1,96 @@
+===============================================================================
+ ROTEIRO DE PRATICA - gforth
+===============================================================================
+ Arquivo de trabalho: pratica.fs (nesta pasta) - contem os esqueletos vazios.
+
+     cd C:\Users\orlando\clp\aula1\forth\pratica
+     gforth pratica.fs
+
+ Preencha cada palavra em pratica.fs, salve, e recarregue no REPL com:
+     INCLUDE pratica.fs
+ Depois rode  TESTES  para conferir tudo de uma vez.
+ Use  .s  a cada passo para ver a pilha, e  CLEARSTACK  se ela sujar.
+-------------------------------------------------------------------------------
+
+ BLOCO A - PILHA E ARITMETICA
+
+ 1. TRIPLO      ( n -- 3n )
+    Multiplica por 3.
+
+ 2. HIPOTENUSA2 ( a b -- a2+b2 )
+    Soma dos quadrados, usando so DUP, SWAP, * e +.
+
+ 3. TROCO       ( centavos -- moedas )
+    Quantas moedas de 25 centavos cabem, e quanto sobra.
+    Dica: /MOD deixa resto e quociente na pilha.
+
+ 4. ENTRE?      ( n min max -- flag )
+    Verdadeiro se min <= n <= max. Dica: ROT e AND.
+
+
+ BLOCO B - CONDICIONAIS E LACOS
+
+ 5. MAIORIDADE  ( idade -- )
+    Imprime "maior" ou "menor" e quebra a linha.
+
+ 6. BISSEXTO?   ( ano -- flag )
+    Divisivel por 4 e nao por 100, OU divisivel por 400.
+
+ 7. SOMA-PARES  ( n -- soma )
+    Soma os numeros pares de 0 ate n-1. Use ?DO com +LOOP.
+
+ 8. POTENCIA    ( base exp -- resultado )
+    Sem recursao, com um laco contado.
+
+ 9. CONTA-DIGITOS ( n -- qtd )
+    Quantos digitos tem o numero. Use BEGIN ... UNTIL.
+
+
+ BLOCO C - MEMORIA E DEFINICOES
+
+ 10. NOTAS / MEDIA-NOTAS
+     Crie um vetor de 5 celulas, preencha com 7 8 9 6 10 e calcule a media
+     inteira.
+
+ 11. MAIOR-NOTA ( -- max )
+     Percorre o mesmo vetor e devolve o maior valor.
+
+ 12. ACUMULADOR-NOMEADO ( "nome" -- )
+     Com CREATE ... DOES>, crie acumuladores independentes.
+     Uso esperado:  ACUMULADOR-NOMEADO VENDAS
+                    100 VENDAS +!   50 VENDAS +!   VENDAS @ .   \ 150
+
+
+===============================================================================
+ GABARITO
+===============================================================================
+ 1.  : TRIPLO 3 * ;
+ 2.  : HIPOTENUSA2 DUP * SWAP DUP * + ;
+ 3.  : TROCO 25 /MOD ;                  \ ( centavos -- resto moedas )
+ 4.  : ENTRE? ROT TUCK >= -ROT >= AND ;  \ ver nota abaixo
+ 5.  : MAIORIDADE 18 >= IF ." maior" ELSE ." menor" THEN CR ;
+ 6.  : BISSEXTO?
+        DUP 400 MOD 0= IF DROP TRUE EXIT THEN
+        DUP 100 MOD 0= IF DROP FALSE EXIT THEN
+        4 MOD 0= ;
+ 7.  : SOMA-PARES 0 SWAP 0 ?DO I + 2 +LOOP ;
+ 8.  : POTENCIA 1 SWAP 0 ?DO OVER * LOOP NIP ;
+ 9.  : CONTA-DIGITOS 0 SWAP BEGIN 10 / SWAP 1+ SWAP DUP 0= UNTIL DROP ;
+ 10. CREATE NOTAS 5 CELLS ALLOT
+     : NOTA[] CELLS NOTAS + ;
+     : PREENCHE-NOTAS 7 0 NOTA[] ! 8 1 NOTA[] ! 9 2 NOTA[] !
+                      6 3 NOTA[] ! 10 4 NOTA[] ! ;
+     : MEDIA-NOTAS 0 5 0 ?DO I NOTA[] @ + LOOP 5 / ;
+ 11. : MAIOR-NOTA 0 NOTA[] @ 5 1 ?DO I NOTA[] @ 2DUP < IF SWAP THEN DROP LOOP ;
+ 12. : ACUMULADOR-NOMEADO CREATE 0 , ;
+     \ nem precisa de DOES>: CREATE ja empilha o endereco, que e o que +! e @
+     \ esperam. Com DOES> @ voce teria um LEITOR, nao um acumulador.
+
+ NOTA sobre o 4: a versao com ROT/TUCK e dificil de ler. Em Forth de verdade,
+ quando os malabarismos de pilha ficam confusos, o correto e simplificar:
+     : ENTRE? ( n min max -- flag )  >R OVER <= SWAP R> <= AND ;
+ ou usar a palavra pronta do gforth:
+     : ENTRE? ( n min max -- flag )  1+ SWAP WITHIN ;   \ WITHIN e ( n lo hi -- f )
+ Regra pratica: se voce precisa de mais de 3 palavras de pilha seguidas,
+ provavelmente falta quebrar a definicao em duas.
+===============================================================================

@@ -1,0 +1,28 @@
+Arquivo de dados usado pelos exercicios de entrada/saida do tutorial Forth.
+Cada linha abaixo do marcador NUMEROS contem um numero inteiro por linha.
+
+NOMES
+Ana
+Bruno
+Carla
+Daniel
+Eduarda
+
+NUMEROS
+10
+25
+7
+42
+100
+3
+88
+15
+64
+1
+
+TEXTO LIVRE
+Forth foi criado por Charles Chuck Moore por volta de 1970.
+E uma linguagem concatenativa baseada em pilha (stack).
+Nao ha precedencia de operadores porque a notacao e posfixa (RPN).
+O programador estende a linguagem definindo novas palavras (words).
+gforth e a implementacao GNU de Forth, disponivel tambem para Windows.

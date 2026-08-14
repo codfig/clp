@@ -1,0 +1,217 @@
+=== ARQUIVO DE DADOS PARA PRATICA DE EXPRESSOES REGULARES ===
+Cada secao abaixo exercita um conceito diferente de regex.
+
+--- SECAO 1: PALAVRAS E TEXTO SIMPLES ---
+casa
+casinha
+casarao
+Casa
+CASA
+caso
+cassino
+descasar
+encaixotar
+o gato subiu no telhado
+O Gato desceu do telhado
+gata gatas gatinho gatao
+cao caes cachorro
+rato ratos ratazana
+pato patos patinho feio
+mato matos matagal
+
+--- SECAO 2: NUMEROS ---
+0
+7
+42
+100
+255
+1024
+3.14
+2,71
+-17
++58
+1000000
+0.001
+1e10
+1.5e-3
+12345678901234567890
+007
+0x1F
+0b1011
+0o755
+
+--- SECAO 3: TELEFONES ---
+11987654321
+(11) 98765-4321
+(21) 3456-7890
++55 11 98765-4321
+11 9876 5432
+0800 123 4567
+(85)91234-5678
+telefone: 4002-8922
+ramal 2345
+
+--- SECAO 4: EMAILS ---
+joao@exemplo.com
+maria.silva@empresa.com.br
+ana_paula123@teste.org
+contato@sub.dominio.net
+invalido@@duplo.com
+sem-arroba.exemplo.com
+usuario@localhost
+admin+tag@gmail.com
+JOSE@EMPRESA.COM.BR
+teste@dominio
+@semnome.com
+
+--- SECAO 5: DATAS E HORAS ---
+2026-08-14
+14/08/2026
+14-08-2026
+08/14/2026
+1999-12-31
+31/12/1999
+2026-13-45
+14 de agosto de 2026
+23:59:59
+09:05
+7:30
+25:99
+
+--- SECAO 6: ENDERECOS IP E URLS ---
+192.168.0.1
+10.0.0.255
+172.16.254.1
+8.8.8.8
+999.999.999.999
+127.0.0.1
+http://www.exemplo.com
+https://seguro.exemplo.com.br/pagina?id=42
+ftp://arquivos.exemplo.org
+www.semprotocolo.com
+https://192.168.1.1:8080/admin
+
+--- SECAO 7: DOCUMENTOS BRASILEIROS ---
+CPF: 123.456.789-09
+CPF: 98765432100
+CNPJ: 12.345.678/0001-95
+CEP: 01310-100
+CEP: 20040030
+RG: 12.345.678-9
+placa ABC-1234
+placa BRA2E19
+
+--- SECAO 8: LOG DE SISTEMA ---
+2026-08-14 09:15:02 INFO  usuario joao efetuou login
+2026-08-14 09:15:47 DEBUG cache carregado com 512 registros
+2026-08-14 09:16:11 WARN  memoria em 87% de uso
+2026-08-14 09:17:03 ERROR falha ao conectar em 192.168.0.44:5432
+2026-08-14 09:17:04 ERROR timeout apos 30000 ms
+2026-08-14 09:18:00 INFO  usuario maria efetuou login
+2026-08-14 09:20:31 FATAL servico interrompido inesperadamente
+2026-08-14 09:21:00 INFO  servico reiniciado
+2026-08-14 10:02:15 WARN  disco em 91% de uso
+2026-08-14 10:45:59 INFO  usuario joao efetuou logout
+
+--- SECAO 9: CARACTERES ESPECIAIS E METACARACTERES LITERAIS ---
+preco: R$ 19,90
+desconto de 50%
+2 + 2 = 4
+a * b = c
+funcao(x, y)
+lista[0]
+conjunto{1,2,3}
+caminho/para/arquivo
+C:\Users\orlando\aula1
+pergunta? resposta!
+ponto.final
+til~aqui
+acento^circunflexo
+pipe|separador
+barra\invertida
+aspas "duplas" e 'simples'
+hash # comentario
+e-mail: a@b.c
+
+--- SECAO 10: ESPACOS, TABS E LINHAS VAZIAS ---
+   linha com espacos no inicio
+linha com espacos no fim   
+	linha comecando com TAB
+linha    com    varios    espacos    no    meio
+linhasemespacos
+
+linha depois de uma linha vazia
+
+--- SECAO 11: REPETICAO E AGRUPAMENTO ---
+a
+aa
+aaa
+aaaa
+ab
+abab
+ababab
+abc
+abcabc
+xyz
+xxyyzz
+banana
+bananana
+ananas
+tomate
+tomatate
+sucesso
+professor
+carro
+correr
+ferro
+
+--- SECAO 12: ANCORAS E LIMITES DE PALAVRA ---
+inicio da linha aqui
+aqui esta no meio inicio da frase
+esta linha termina com fim
+fim
+o sub esta dentro de substituir
+sub
+subir
+resub
+insubstituivel
+cat
+concatenar
+gato scatter cat!
+
+--- SECAO 13: CLASSES POSIX ---
+abcXYZ123
+somente_letras
+SOMENTE MAIUSCULAS
+somente minusculas
+Misto De Maiusculas E Minusculas
+1234567890
+!@#$%^&*()
+alfa123numerico
+espaco e tab		aqui
+acentuacao: coracao, pao, avio, Ingles, atencao
+
+--- SECAO 14: BACK-REFERENCES (repeticao de grupo) ---
+abab
+abcabc
+1212
+xyzxyz
+palavra palavra repetida
+o o gato
+nao nao repete aqui
+casa casa casa
+naorepetido diferente
+123123
+aa bb cc
+ab cd ef
+
+--- SECAO 15: CSV PARA EXTRACAO ---
+nome,idade,cidade,salario
+Joao Silva,34,Sao Paulo,5200.50
+Maria Souza,28,Rio de Janeiro,7300.00
+Carlos Lima,45,Belo Horizonte,4100.75
+Ana Costa,19,Fortaleza,1800.00
+Pedro Alves,61,Porto Alegre,9950.25
+Beatriz Rocha,52,Curitiba,6400.10
+
+=== FIM DO ARQUIVO ===
