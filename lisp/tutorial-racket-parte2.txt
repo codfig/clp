@@ -1,0 +1,429 @@
+===============================================================================
+ RACKET NA LINHA DE COMANDO - PARTE 2: EVAL, DEFINE E CONDICIONAIS
+===============================================================================
+ Pré-requisito: tutorial-racket-parte1.txt
+
+ Continua a mesma estrutura: conceito, comandos para digitar, caixas
+ CUIDADO, e exercícios sem gabarito - a conferência é o próprio REPL.
+
+===============================================================================
+ TEMA 9 - EVAL, E O EVAL DE LISTAS COM APÓSTROFO
+===============================================================================
+
+ No Tema 8 vimos que quote "desliga" a avaliação. Isso só faz sentido
+ porque, para o interpretador Lisp, TODA lista é candidata a ser um
+ programa - a mesma sintaxe serve para dado e para código. Essa
+ propriedade tem nome: HOMOICONICIDADE.
+
+ Quando você digita uma expressão sem quote, o REPL avalia na hora:
+
+     (+ 2 3)
+
+ Quando você coloca o apóstrofo, o interpretador "desliga" e devolve a
+ lista intacta, sem executar nada:
+
+     '(+ 2 3)
+
+ O resultado impresso é '(+ 2 3): a lista de três elementos (+ 2 3), com o
+ símbolo + como primeiro elemento - dado, não código executado. (O
+ apóstrofo que aparece na frente do resultado é o mesmo apóstrofo do
+ Tema 5, parte 1: o REPL imprime toda lista assim, de propósito.)
+
+ A função eval faz o caminho inverso: pega uma lista (dado) e a executa
+ como se fosse a sexp que ela representa:
+
+     (eval '(+ 2 3))
+     (eval (list '+ 2 3))
+
+ As duas linhas acima devolvem 5. A segunda monta a mesma lista com list
+ em vez de quote - e por isso precisa citar o + com apóstrofo (o símbolo
+ +, não o valor da função +... embora em Racket funcione também sem o
+ apóstrofo aqui, já que + avalia para a própria função).
+
+ O CICLO COMPLETO
+ -----------------
+ quote transforma código em dado; eval transforma dado de volta em código
+ executado. Rode a ida e a volta:
+
+     (define programa '(+ (* 2 3) 4))
+     programa
+     (eval programa)
+
+ programa é uma LISTA como qualquer outra - pode-se inspecionar, modificar
+ com car/cdr/cons, e só DEPOIS decidir executá-la com eval. Essa é a ideia
+ por trás dos interpretadores e macros de Lisp: o programa é um dado
+ manipulável.
+
+ CUIDADO - eval SEM QUOTE EXECUTA NA HORA, NÃO HÁ "DADO" PARA AVALIAR DEPOIS
+ -------------------------------------------------------------------------------
+ (eval (+ 2 3)) primeiro avalia (+ 2 3) para 5 (porque não tem quote), e
+ só então chama eval sobre o número 5 - que devolve 5 mesmo, sem nenhum
+ ganho. O uso interessante de eval é sempre sobre uma lista QUOTED (ou
+ montada com list), nunca sobre uma expressão já avaliada.
+
+ EXERCÍCIOS
+ ----------
+ 9.1  Compare (+ 2 3) com '(+ 2 3) lado a lado e descreva a diferença com
+      suas palavras.
+ 9.2  Monte a lista '(* 6 7) numa variável e recupere o resultado com
+      eval.
+ 9.3  Construa com list (não com quote) uma sexp que representa (- 10 4),
+      e avalie-a com eval.
+ 9.4  O que (eval ''a) devolve? Ajuda pensar: '' é apóstrofo duas vezes -
+      quote de um quote.
+
+===============================================================================
+ TEMA 10 - APÓSTROFO COMO SYNTACTIC SUGAR PARA quote
+===============================================================================
+
+ O apóstrofo usado o tema todo não é uma sintaxe separada: é um atalho
+ para a special form quote. As duas linhas de cada par abaixo são
+ EXATAMENTE a mesma sexp:
+
+     (quote (1 2 3))
+     '(1 2 3)
+
+     (quote a)
+     'a
+
+     (quote ())
+     '()
+
+ Confirme que o REPL concorda:
+
+     (equal? (quote (1 2 3)) '(1 2 3))
+     (eq? (quote a) 'a)
+
+ quote funciona em QUALQUER sexp, não só em listas: 'a desliga a
+ avaliação de um símbolo (ele deixa de ser "procurado" como variável e
+ vira o próprio símbolo, como dado):
+
+     (define a 65536)
+     a
+     'a
+
+ A primeira linha devolve 65536 (o valor guardado pelo define). A segunda
+ devolve o símbolo a em si - sem consultar nenhuma variável.
+
+ CUIDADO - APÓSTROFO GRUDA NO PARÊNTESE, NÃO NO CONTEÚDO
+ ------------------------------------------------------------
+ O apóstrofo se aplica a UMA sexp inteira, a que vem logo depois dele - se
+ essa sexp é uma lista, TUDO dentro dela fica desligado, recursivamente.
+ Não existe "meio quote" que desliga só o primeiro elemento:
+
+     '(a (+ 1 2) b)
+
+ Os três elementos ficam intactos como dado, inclusive o (+ 1 2) por
+ dentro - ele NÃO é calculado. (Racket também tem quasiquote, que permite
+ religar a avaliação só em pedaços escolhidos - fora do escopo deste
+ tutorial, mas vale pesquisar mais adiante no curso.)
+
+ EXERCÍCIOS
+ ----------
+ 10.1 Reescreva '(x y z) usando quote por extenso, sem apóstrofo.
+ 10.2 Compare 'a com (quote a) usando eq?. O resultado confirma que são a
+      mesma coisa?
+ 10.3 O que ''a devolve? Reescreva por extenso com quote até entender
+      cada camada.
+ 10.4 Com (define lista '(1 2 3)), qual a diferença entre lista e 'lista?
+
+===============================================================================
+ TEMA 11 - APPLY
+===============================================================================
+
+ apply recebe uma função e uma LISTA de argumentos, e chama a função como
+ se cada elemento da lista fosse um argumento separado:
+
+     (apply + '(1 2 3 4))
+     (apply max '(3 7 2 9 1))
+
+ A primeira linha equivale a (+ 1 2 3 4); a segunda, a (max 3 7 2 9 1). A
+ diferença é que em apply os argumentos vêm PRONTOS numa lista, em vez de
+ escritos um a um na sexp.
+
+ apply também aceita argumentos soltos ANTES da lista final - eles entram
+ primeiro, e só o último argumento precisa ser lista:
+
+     (apply + 10 20 '(1 2 3))
+
+ Isso equivale a (+ 10 20 1 2 3).
+
+ PARA QUE SERVE
+ ---------------
+ apply é o elo entre "lista como dado" e "chamada de função": quando os
+ argumentos só existem prontos dentro de uma lista (vieram de outro
+ cálculo, por exemplo), apply evita ter que desmontar a lista na mão com
+ car/cdr para escrever a chamada.
+
+     (define numeros '(4 8 15 16 23 42))
+     (apply + numeros)
+     (apply max numeros)
+
+ CUIDADO - O ÚLTIMO ARGUMENTO PRECISA SER LISTA, E PRECISA SER QUOTED
+ -------------------------------------------------------------------------
+ (apply + (1 2 3 4)), sem apóstrofo, tenta primeiro AVALIAR (1 2 3 4) como
+ uma chamada de função - e falha, porque 1 não é uma função. O erro
+ acontece ANTES de apply sequer começar a rodar. A lista de argumentos tem
+ que chegar pronta, como dado:
+
+     (apply + (1 2 3 4))        ERRO: 1 não é uma função aplicável
+     (apply + '(1 2 3 4))       10
+
+ EXERCÍCIOS
+ ----------
+ 11.1 Some a lista '(10 20 30 40) com apply.
+ 11.2 Ache o menor valor de '(5 -3 8 0 -12) usando apply e min.
+ 11.3 Rode (apply + (1 2 3 4)) sem apóstrofo de propósito e leia a
+      mensagem de erro. Ela confirma o que o CUIDADO acima descreve?
+ 11.4 Escreva uma chamada com apply que calcule 1 + 2 + a soma de
+      '(3 4 5), misturando argumentos soltos com a lista final.
+
+===============================================================================
+ TEMA 12 - DEFINE
+===============================================================================
+
+ define cria um VÍNCULO entre um símbolo e um valor - a forma de Lisp de
+ nomear coisas. Há duas sintaxes, uma para variáveis e outra, abreviada,
+ para funções.
+
+ VARIÁVEIS
+ ---------
+     (define pi-aprox 3.14)
+     pi-aprox
+     (* pi-aprox 2)
+
+ FUNÇÕES - FORMA LONGA (lambda)
+ --------------------------------
+ Uma função é só um valor, como qualquer outro - o valor produzido pela
+ special form lambda:
+
+     (define quadrado (lambda (x) (* x x)))
+     (quadrado 5)
+
+ FUNÇÕES - FORMA CURTA (o "açúcar" de define)
+ -----------------------------------------------
+ A forma abaixo é syntactic sugar para a de cima - Racket monta o lambda
+ por você quando vê parênteses no lugar do nome:
+
+     (define (quadrado x) (* x x))
+     (quadrado 5)
+
+ Função de mais de um parâmetro:
+
+     (define (media a b) (/ (+ a b) 2))
+     (media 7 10)
+
+ Confirme que as duas formas produzem a mesma coisa:
+
+     (define f1 (lambda (x) (* x x)))
+     (define (f2 x) (* x x))
+     (equal? (f1 6) (f2 6))
+
+ CUIDADO - DEFINE NO REPL SUBSTITUI SEM AVISAR
+ --------------------------------------------------
+ Redefinir um símbolo que já existia - inclusive um nome embutido como
+ list ou + - simplesmente troca o vínculo, sem erro nem aviso:
+
+     (define + -)
+     (+ 5 3)
+
+ Isso imprime 2, porque + agora aponta para a função de subtração. Se isso
+ acontecer sem querer no REPL, feche e abra o racket de novo para
+ restaurar os nomes originais.
+
+ EXERCÍCIOS
+ ----------
+ 12.1 Crie uma função fahrenheit->celsius que converte Fahrenheit em
+      Celsius: subtraia 32 e multiplique por 5/9.
+ 12.2 Escreva a mesma função do exercício anterior nas duas formas - com
+      lambda explícito e com o açúcar sintático - e confirme que dão o
+      mesmo resultado.
+ 12.3 Defina uma função cubo que eleva ao cubo, usando expt.
+ 12.4 Provoque de propósito o CUIDADO acima: redefina - para somar em vez
+      de subtrair, teste, e depois reabra o racket para desfazer.
+
+===============================================================================
+ TEMA 13 - CONDICIONAIS: if
+===============================================================================
+
+ if é uma EXPRESSÃO, não um comando: ela produz um valor, como qualquer
+ outra sexp. Isso é uma das inovações que Lisp trouxe em 1959.
+
+     (if <teste> <então> <senão>)
+
+ Os três pedaços são obrigatórios - sempre teste, ramo verdadeiro, ramo
+ falso, nessa ordem:
+
+     (if #t 3 "oi")
+     (if #f 3 "oi")
+     (if (> 3 10) (+ 4 10) (- 4 10))
+
+ Como if é expressão, o resultado pode ser usado direto em outra conta:
+
+     (+ 1 (if (> 5 2) 10 20))
+
+ SÓ #f É FALSO
+ --------------
+ Essa é a regra que já apareceu no Tema 6: em Racket, o ÚNICO valor que
+ conta como falso num if é #f. Todo o resto - inclusive 0, a lista vazia
+ '() e a string vazia "" - conta como verdadeiro:
+
+     (if 0 "zero é verdadeiro" "zero é falso")
+     (if '() "vazia é verdadeira" "vazia é falsa")
+     (if "" "string vazia é verdadeira" "string vazia é falsa")
+
+ As três imprimem o primeiro ramo. Quem vem de C, Python ou JavaScript
+ estranha isso: lá, 0 e "" costumam ser falsos.
+
+ CUIDADO - if NÃO ACEITA SÓ DOIS RAMOS
+ -------------------------------------------
+ (if (> 3 10) (+ 4 10)), sem o ramo senão, é ERRO em Racket - ao contrário
+ de outras linguagens, não há "if sem else" aqui. Se você só precisa agir
+ num dos ramos e não tem nada a fazer no outro, existem when e unless para
+ isso (fora do escopo deste tutorial, mas vale pesquisar).
+
+ EXERCÍCIOS
+ ----------
+ 13.1 Escreva um if que devolve "par" ou "ímpar" dependendo de um número,
+      usando (even? n) como teste.
+ 13.2 Com (define l '(10 100 1000)), escreva um if que devolve (car l) se
+      a lista NÃO for vazia, e "lista vazia" caso contrário.
+ 13.3 Rode os três exemplos da caixa "SÓ #f É FALSO" e confirme que os
+      três imprimem o primeiro ramo.
+ 13.4 Tente escrever um if de dois ramos só (sem o senão) e leia a
+      mensagem de erro.
+
+===============================================================================
+ TEMA 14 - COMPARAÇÕES E OPERADORES LÓGICOS
+===============================================================================
+
+ COMPARAÇÃO NUMÉRICA
+ ---------------------
+     (= 3 3)                #t     igualdade NUMÉRICA
+     (< 3 10)                #t
+     (> 3 10)                #f
+     (<= 3 3)                 #t
+     (>= 10 3)                 #t
+
+ = só serve para números. Para comparar QUALQUER outra coisa - listas,
+ strings, símbolos - use equal?:
+
+     (= 3 "3")             ERRO: "3" não é número
+     (equal? '(1 2 3) '(1 2 3))     #t
+     (equal? "oi" "oi")                #t
+     (eq? 'a 'a)                        #t
+
+ (equal? compara o CONTEÚDO; eq? compara se é o mesmo objeto na memória -
+ para símbolos e números pequenos costuma dar no mesmo, mas para listas
+ construídas separadamente, não. Prefira equal? no dia a dia.)
+
+ OPERADORES LÓGICOS
+ --------------------
+ and, or e not combinam testes booleanos, com AVALIAÇÃO PREGUIÇOSA
+ (short-circuit): and para no primeiro #f, or para no primeiro valor
+ verdadeiro.
+
+     (and (> 10 6) (= 2 2))
+     (or (> 3 10) (= 5 5))
+     (not (> 3 10))
+
+ Combinando tudo, como no material original do curso:
+
+     (define l '(10 100 1000))
+     (if (or (> 10 6) (= 11 12)
+             (and (list? l) (number? (car l))))
+         "oi"
+         (cdr l))
+
+ CUIDADO - and/or DEVOLVEM UM VALOR, NÃO SÓ #t/#f
+ -------------------------------------------------------
+ and devolve o ÚLTIMO valor avaliado se todos forem verdadeiros (ou #f no
+ primeiro que falhar); or devolve o PRIMEIRO valor verdadeiro que
+ encontrar (ou #f se nenhum for). Isso é diferente de outras linguagens,
+ onde and/or só devolvem booleano puro:
+
+     (and 1 2 3)             3    -   não #t
+     (or #f #f 5)            5    -   não #t
+     (and 1 #f 3)            #f
+
+ Esse comportamento é usado de propósito em Racket para escrever
+ "valor-padrão": (or entrada-do-usuário "valor padrão").
+
+ EXERCÍCIOS
+ ----------
+ 14.1 Compare (= 3 3.0) com (equal? 3 3.0). Os dois concordam? E com
+      (eq? 3 3.0)?
+ 14.2 Escreva um teste que confirme que um número n está entre 1 e 100
+      (inclusive), usando and.
+ 14.3 Compare (or (member 2 '(1 2 3)) "não achei") com
+      (or (member 5 '(1 2 3)) "não achei"). Explique os dois resultados
+      usando a regra do CUIDADO acima - um deles não devolve #t nem
+      "não achei".
+ 14.4 O que (and) sem argumento nenhum devolve? E (or) sem argumento?
+      Pesquise ou teste e explique por que faz sentido.
+
+===============================================================================
+ TEMA 15 - cond: UM CONDICIONAL COMO switch
+===============================================================================
+
+ if só tem dois ramos. Quando há VÁRIAS condições em sequência, encadear
+ if dentro de if fica ilegível rápido. cond resolve isso com uma lista de
+ cláusulas [teste expressão]:
+
+     (cond
+       [(< 3 0) "negativo"]
+       [(= 3 0) "zero"]
+       [else "positivo"])
+
+ Cada cláusula é testada em ordem, de cima para baixo. A PRIMEIRA cujo
+ teste der verdadeiro tem sua expressão executada, e as demais nem chegam
+ a ser olhadas. else é a cláusula coringa, sempre verdadeira -
+ convencionalmente a última.
+
+     (define (classifica n)
+       (cond
+         [(< n 0) "negativo"]
+         [(= n 0) "zero"]
+         [(< n 10) "dígito"]
+         [else "grande"]))
+
+     (classifica -5)
+     (classifica 0)
+     (classifica 7)
+     (classifica 42)
+
+ COLCHETES OU PARÊNTESES?
+ ---------------------------
+ [ ] e ( ) são INTERCAMBIÁVEIS em Racket - o leitor os trata igual. A
+ convenção é usar [ ] nas cláusulas de cond (e de let, mais adiante no
+ curso) só por LEGIBILIDADE, para o olho distinguir "uma cláusula" de "uma
+ chamada de função". Não há diferença semântica nenhuma.
+
+ CUIDADO - SEM else, UMA CLÁUSULA PODE NÃO CASAR COM NADA
+ -----------------------------------------------------------
+ Se nenhum teste for verdadeiro e não houver else, cond não produz erro,
+ mas devolve um valor especial pouco útil (void). É fácil esquecer o else
+ e obter um resultado silenciosamente errado:
+
+     (cond
+       [(> 3 10) "a"]
+       [(> 3 20) "b"])
+
+ Isso não imprime nada de útil - nenhuma cláusula casou. Termine cond com
+ else sempre que as opções anteriores não cobrirem todos os casos.
+
+ EXERCÍCIOS
+ ----------
+ 15.1 Reescreva o if do exercício 13.1 (par/ímpar) como um cond com duas
+      cláusulas.
+ 15.2 Escreva uma função nota->conceito que recebe uma nota de 0 a 10 e
+      devolve "A" (>= 9), "B" (>= 7), "C" (>= 5) ou "D" (o resto), com
+      cond.
+ 15.3 Rode o exemplo do CUIDADO acima (sem else) e observe o que aparece
+      no REPL quando nenhuma cláusula casa.
+ 15.4 Reescreva a função classifica do tema usando if aninhado em vez de
+      cond. Qual versão você acha mais legível?
+
+===============================================================================
+ FIM DA PARTE 2
+===============================================================================

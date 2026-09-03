@@ -1,12 +1,16 @@
-# pl
-Programming Languages Course
+# clp
+Conceitos de Linguagens de Programação
+
+## Últimas mensagens
 
 ## Aulas (sextas-feiras)
 
-- [ ] 14/08/2026 - Aula 01
-- [ ] 21/08/2026 - Evento Games - Sem aula
-- [ ] 28/08/2026 - Aula 02
+- [x] 14/08/2026 - Aula 01 - Lex/Sint/Sem + regex + forth
+- [x] 21/08/2026 - Evento Games - Sem aula
+- [x] 28/08/2026 - Aula 02 - Lisp + recursão
 - [ ] 04/09/2026 - Aula 03
 - [ ] 11/09/2026 - Aula 04 - Avaliação
 - [ ] 18/09/2026 - SECCOMP
 - [ ] 25/09/2026 - Sem aula
+
+## Registro de mensagens anteriores
