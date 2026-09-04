@@ -1,0 +1,29 @@
+@page { size: A4; margin: 9mm 9mm 9mm 9mm; }
+html { font-size: 7.8pt; }
+body {
+  font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  line-height: 1.22; margin: 0; color: #000;
+}
+.cols { column-count: 2; column-gap: 5mm; column-fill: balance; }
+.page { break-before: page; }
+h1 { font-size: 1.45em; margin: 0 0 0.25em; padding-bottom: 0.15em; border-bottom: 1.5px solid #000; break-after: avoid; }
+h1:not(:first-of-type) { margin-top: 1.1em; }
+h2 { font-size: 1.15em; margin: 0.8em 0 0.25em; break-after: avoid; border-bottom: 0.5px solid #999; }
+h3 { font-size: 1em; margin: 0.6em 0 0.2em; break-after: avoid; }
+p { margin: 0.25em 0 0.45em; text-align: left; }
+ol, ul { margin: 0.2em 0 0.4em; padding-left: 1.4em; }
+li { margin: 0.1em 0; }
+code, pre { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 0.95em; }
+code { background: #f1f1f1; padding: 0 0.15em; border-radius: 2px; }
+pre { background: #f4f4f4; border: 0.5px solid #bbb; padding: 0.35em 0.5em; margin: 0.3em 0 0.5em;
+      white-space: pre-wrap; break-inside: avoid; line-height: 1.2; }
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; margin: 0.25em 0 0.55em; font-size: 0.97em; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+h2 + table, h3 + table, p + table { break-before: avoid; }
+th, td { border: 0.5px solid #999; padding: 0.12em 0.3em; vertical-align: top; text-align: left; }
+th { background: #e6e6e6; }
+td:empty { border: none; }
+tr:nth-child(even) td { background: #fafafa; }
+strong { font-weight: 700; }
