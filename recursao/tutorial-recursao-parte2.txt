@@ -1,0 +1,891 @@
+===============================================================================
+ PROGRAMAÇÃO RECURSIVA: PROCESSAMENTO DE LISTAS EM RACKET - PARTE 2
+===============================================================================
+ Pré-requisito: tutorial-recursao-parte1.txt (Temas 16 a 28), que termina em
+ lambda e my-map.
+ Biblioteca....: exemplos-parte2.rkt (mesma pasta)
+
+ Baseado no material original do curso, recursao01.pdf (segunda metade) e
+ recursao02.pdf. Mesma estrutura de sempre: conceito, comandos para digitar,
+ caixas CUIDADO no ponto exato onde o erro costuma acontecer, e exercícios
+ sem gabarito - a conferência é o próprio REPL.
+
+ A biblioteca exemplos-parte2.rkt traz TODOS os exemplos demonstrados neste
+ texto, prontos para carregar - no DrRacket com Run, no VS Code com
+ "Racket: Load file in REPL" (extensão Magic Racket), ou no terminal com
+
+     racket -i -e '(enter! "exemplos-parte2.rkt")'
+
+ Ela contém apenas os exemplos do texto - nenhuma resposta de exercício.
+
+ UMA CONVENÇÃO DE NOMES
+ ----------------------
+ Várias funções deste tutorial já existem prontas em Racket (map, filter,
+ append, take, drop, ormap, andmap...). Quando reimplementamos uma delas
+ para entender como funciona por dentro, usamos o prefixo my-: my-map,
+ my-filter, my-append. Assim a sua versão e a nativa convivem no mesmo
+ arquivo, e você pode comparar as duas com equal? - o que é, aliás, a melhor
+ forma de conferir os exercícios.
+===============================================================================
+
+===============================================================================
+ TEMA 29 - RETORNO BOOLEANO: A FUNÇÃO pertence?
+===============================================================================
+
+ Parâmetros: x (um elemento), l (uma lista, vista aqui como um conjunto).
+ Retorna #t se x aparece em l, e #f caso contrário.
+
+     (pertence? 3 '(3 1 4))
+     >>> #t
+     (pertence? 3 '(0 3 1 4))
+     >>> #t
+     (pertence? 3 '(5 1 4))
+     >>> #f
+     (pertence? 3 '())
+     >>> #f
+
+ Até aqui as funções da Parte 1 devolviam números (somar, contar) ou listas
+ (dobrar, my-map). Agora o retorno é um BOOLEANO - e o esqueleto do Tema 18
+ continua exatamente o mesmo.
+
+ Construindo passo a passo, começando pelo caso geral, que é o mais
+ interessante. O foco é a cabeça da lista: se ela for igual a x, já sabemos
+ a resposta, é #t. Não há mais nada a procurar:
+
+     (define (pertence? x l)
+       (if (null? l)
+           (.. base ..)
+           (if (equal? x (car l))
+               #t
+               (.. ? ..))))
+
+ E se a cabeça NÃO for x? Aí vale o pulo do gato (Tema 19): a chamada
+ recursiva sobre a cauda já responde "x está no resto da lista?" - e essa
+ resposta é exatamente a resposta que queremos dar. Se a recursão devolve
+ #t, o resultado é #t; se devolve #f, é #f. Ou seja: o resultado É a chamada
+ recursiva, sem nenhuma combinação em volta.
+
+     (define (pertence? x l)
+       (if (null? l)
+           (.. base ..)
+           (if (equal? x (car l))
+               #t
+               (pertence? x (cdr l)))))
+
+ Falta o caso base. Um conjunto vazio não possui elementos, logo x não
+ pertence a ele: #f.
+
+     (define (pertence? x l)
+       (if (null? l)
+           #f
+           (if (equal? x (car l))
+               #t
+               (pertence? x (cdr l)))))
+
+ CUIDADO - #t E #f SÃO VALORES, NÃO SÃO FUNÇÕES
+ -----------------------------------------------
+ Escreva #t, e não (#t). Os parênteses em Lisp significam CHAMADA de
+ função: (#t) manda o interpretador aplicar #t como se fosse uma função, e
+ ele reclama ("application: not a procedure"). Booleanos são valores
+ comuns, iguais a 3 ou a "oi" nesse aspecto.
+
+ EXERCÍCIOS
+ ----------
+ 29.1 Digite pertence? e confira os quatro exemplos do início do tema.
+ 29.2 Reescreva pertence? usando cond em vez dos dois if aninhados.
+ 29.3 Escreva nao-pertence?, que devolve #t exatamente quando pertence?
+      devolveria #f. Faça de dois jeitos: (a) trocando #t por #f e vice-versa
+      no corpo; (b) chamando pertence? e usando not. Compare os dois.
+
+===============================================================================
+ TEMA 30 - A TABELA, AGORA COM O TIPO BOOLEANO
+===============================================================================
+
+ A tabela dos Temas 23 e 25 ganha mais uma linha - e é a última linha
+ importante dela, porque número, lista e booleano cobrem quase tudo o que
+ essas funções devolvem:
+
+     Tipo de retorno   Valor típico do caso base   Operador do caso geral
+     ---------------   -------------------------   ----------------------
+     número            0, 1, etc.                  +, add1, *, ...
+     lista             '()                         cons
+     booleano          #f ou #t                    or, and, not
+
+ Leia a tabela sempre da mesma maneira: o caso base é o elemento NEUTRO do
+ operador do caso geral. Somar 0 não muda uma soma; consar em '() não
+ estraga uma lista; e, do mesmo jeito, #f é neutro para or (x or #f = x) e
+ #t é neutro para and (x and #t = x).
+
+ Daí a regra prática que vale para todo predicado recursivo:
+
+   - Se a função pergunta "EXISTE algum elemento que...?", o caso base é #f
+     (numa lista vazia não existe nenhum) e o operador é or.
+   - Se a função pergunta "TODOS os elementos são...?", o caso base é #t
+     (numa lista vazia não há contraexemplo) e o operador é and.
+
+ O caso base #t da segunda linha costuma incomodar quem vê pela primeira
+ vez: "todos os elementos de uma lista vazia são pares?". A resposta é sim,
+ por vacuidade - não existe nenhum elemento capaz de desmentir a afirmação.
+
+ EXERCÍCIOS
+ ----------
+ 30.1 Em pertence? (Tema 29), qual dos dois casos da regra acima se aplica?
+      Confira: o caso base ficou mesmo #f?
+ 30.2 Escreva de cabeça as três linhas da tabela e, para cada uma, uma
+      função da Parte 1 ou 2 que a exemplifique.
+
+===============================================================================
+ TEMA 31 - PREDICADOS ESCRITOS COMO EXPRESSÕES LÓGICAS
+===============================================================================
+
+ A mesma expressão recursiva pode ser lida de duas maneiras:
+
+   - IMPERATIVAMENTE: "faça a recursão, obtenha o resultado, e opere com ele".
+   - DECLARATIVAMENTE: "o resultado é isto se a lista for vazia, ou aquilo
+     em caso contrário" - onde "aquilo" é uma fórmula que envolve a
+     recursão, tratada como algo já pronto.
+
+ Funções que devolvem #t ou #f (predicados, marcados pela interrogação no
+ nome) costumam ficar bem mais curtas quando escritas declarativamente, como
+ uma expressão lógica com or, and e not. Veja pertence? de novo:
+
+     x pertence a l  quando  x é a cabeça de l  OU  x pertence à cauda de l
+
+ Traduzindo direto para Racket:
+
+     (or (equal? x (car l)) (pertence? x (cdr l)))
+
+ A frase e o código são a mesma coisa - é isso que se quer dizer com
+ "declarativo". Só falta uma peça: a lista vazia, que não tem car nem cdr.
+
+     (define (pertence? x l)
+       (and (not (null? l))
+            (or (equal? x (car l))
+                (pertence? x (cdr l)))))
+
+ Repare que essa versão de três linhas é a MESMA função das oito linhas do
+ Tema 29. Isso funciona porque and e or em Racket avaliam da esquerda para a
+ direita e param assim que a resposta está decidida (curto-circuito):
+ (and #f <qualquer coisa>) devolve #f sem nem olhar o resto, e
+ (or #t <qualquer coisa>) devolve #t do mesmo jeito. Confirme no REPL:
+
+     (or #t (car '()))
+     (and #f (car '()))
+
+ As duas devolvem um booleano em paz, embora (car '()) sozinho seja um erro.
+
+ CUIDADO - A VERSÃO CURTA AINDA PRECISA DO TESTE DE LISTA VAZIA
+ ---------------------------------------------------------------
+ É tentador escrever só:
+
+     (define (pertence? x l)                          ; ERRADO
+       (or (equal? x (car l)) (pertence? x (cdr l))))
+
+ Parece elegante, mas quebra em TODA lista que não contenha x - inclusive
+ na lista vazia:
+
+     (pertence? 3 '(1 2))
+     >>> car: contract violation / expected: pair? / given: '()
+
+ A recursão consome a lista até '() e aí pede (car '()). O
+ (and (not (null? l)) ...) na frente é justamente o caso base disfarçado
+ de operador lógico: ele devolve #f para a lista vazia e, de quebra,
+ protege o car e o cdr que vêm depois.
+
+ EXERCÍCIOS
+ ----------
+ 31.1 Digite as duas versões de pertence? (Temas 29 e 31) com nomes
+      diferentes e confira com equal? que dão o mesmo resultado em
+      '(3 1 4), '(5 1 4) e '().
+ 31.2 Teste a versão ERRADA do CUIDADO acima e provoque o erro de
+      propósito. Ver a mensagem uma vez economiza meia hora depois.
+ 31.3 Qual das duas versões você acha mais fácil de LER? E de ESCREVER?
+      Não há resposta certa - é escolha de estilo, e as duas aparecem em
+      código Lisp de verdade.
+
+===============================================================================
+ TEMA 32 - existe?, A GENERALIZAÇÃO DE pertence?
+===============================================================================
+
+ pertence? responde a uma pergunta bem específica: "algum elemento é IGUAL
+ a x?". Mas a estrutura da função não tem nada a ver com igualdade - ela
+ serviria igualmente para "algum elemento é par?", "algum é negativo?",
+ "algum é uma string?".
+
+ A saída é a mesma do Tema 28, quando dobrar virou my-map: em vez de fixar o
+ teste, recebe-se o teste como PARÂMETRO. Uma função que devolve #t ou #f
+ sobre um elemento chama-se PREDICADO, e por isso o parâmetro se chama p.
+
+ Parâmetros: p (um predicado de um argumento), l (lista). Retorna #t se
+ ALGUM elemento de l satisfaz p.
+
+     (existe? even? '(1 3 7 -1))
+     >>> #f
+     (existe? negative? '(1 3 7 -1))
+     >>> #t
+     (existe? (lambda (x) (= 0 (modulo x 2))) '(1 3 11))
+     >>> #f
+     (existe? (lambda (x) (= 0 (modulo x 2))) '(1 2))
+     >>> #t
+     (existe? number? '("oi" ()))
+     >>> #f
+     (existe? boolean? '(4 (5 6) #t 5))
+     >>> #t
+
+ A implementação é pertence? com (p (car l)) no lugar de (equal? x (car l)):
+
+     (define (existe? p l)
+       (if (null? l)
+           #f
+           (if (p (car l))
+               #t
+               (existe? p (cdr l)))))
+
+ E a versão declarativa do Tema 31 também sobrevive à generalização:
+
+     (define (existe? p l)
+       (and (not (null? l))
+            (or (p (car l))
+                (existe? p (cdr l)))))
+
+ CUIDADO - p É UMA FUNÇÃO: USE (p (car l)), NÃO (p car l) NEM p
+ ---------------------------------------------------------------
+ Como p é uma função, ela vai no COMEÇO de uma sexp, com o argumento
+ depois: (p (car l)). Erros comuns:
+
+     (p car l)        ; passa a função car e a lista l como argumentos
+     (p l)            ; aplica o predicado à lista inteira, não ao elemento
+     p (car l)        ; duas expressões soltas, sem chamada nenhuma
+
+ Repare também que, na CHAMADA, o predicado vai sem parênteses:
+ (existe? even? '(1 2)) - even? aqui é um VALOR sendo passado, não uma
+ chamada. Escrever (even?) provocaria erro de aridade.
+
+ O ormap QUE JÁ EXISTE
+ ---------------------
+ Racket tem essa função pronta, com o nome ormap ("o or mapeado sobre a
+ lista"):
+
+     (ormap even? '(1 2 3))
+     (ormap negative? '(1 3 7 -1))
+
+ EXERCÍCIOS
+ ----------
+ 32.1 Digite existe? e confira os seis exemplos acima.
+ 32.2 Obtenha (pertence? 3 '(0 3 1 4)) usando existe? e um lambda, sem
+      chamar pertence?. Isso mostra, na prática, que pertence? é um caso
+      particular de existe?.
+ 32.3 Use existe? para responder se '(4 (5 6) #t 5) tem algum elemento que
+      seja uma lista (procure a função list? ou pair?).
+ 32.4 Escreva my-ormap, idêntica a existe?, e confira com equal? que ela
+      concorda com o ormap nativo em três listas diferentes.
+ 32.5 Escreva existe-dois?, que devolve #t se PELO MENOS DOIS elementos da
+      lista satisfazem p. Dica: o retorno de existe-dois? é booleano, mas
+      pode ajudar pensar antes em quantos elementos satisfazem p (você já
+      escreveu algo assim no Tema 21).
+
+===============================================================================
+ TEMA 33 - todos?, O OUTRO LADO DA MOEDA
+===============================================================================
+
+ Parâmetros: p (predicado), l (lista). Retorna #t se TODOS os elementos de l
+ satisfazem p.
+
+     (todos? pair? '((9 12 20) (3 3) (4 0 0 11)))
+     >>> #t
+     (todos? number? '(4 5 6 #f))
+     >>> #f
+     (todos? positive? '(1 2 3))
+     >>> #t
+     (todos? number? '())
+     >>> #t
+
+ Pela tabela do Tema 30, sabemos as duas peças antes mesmo de escrever: caso
+ base #t, operador and. E o caso geral se lê declarativamente numa frase:
+ todos os elementos satisfazem p quando a CABEÇA satisfaz p E todos os
+ elementos da CAUDA satisfazem p.
+
+     (define (todos? p l)
+       (if (null? l)
+           #t
+           (and (p (car l))
+                (todos? p (cdr l)))))
+
+ Compare lado a lado com existe? (Tema 32): trocaram-se #f por #t e or por
+ and, e nada mais. Predicados "existe" e predicados "todos" são duais - um
+ é a negação do outro com o predicado negado:
+
+     (existe? p l)  é o mesmo que  (not (todos? (lambda (x) (not (p x))) l))
+
+ O andmap QUE JÁ EXISTE
+ ----------------------
+     (andmap positive? '(1 2 3))
+     (andmap number? '(4 5 6 #f))
+
+ EXERCÍCIOS
+ ----------
+ 33.1 Digite todos? e confira os quatro exemplos acima. Explique com suas
+      palavras por que o último dá #t.
+ 33.2 Escreva a versão declarativa de todos?, no estilo do Tema 31 (uma só
+      expressão com or/and/not, sem if).
+ 33.3 Escreva nenhum?, que devolve #t quando NENHUM elemento satisfaz p.
+      Faça duas versões: uma recursiva do zero, outra de uma linha só,
+      combinando existe? com not.
+ 33.4 Escreva my-andmap e confira com o andmap nativo.
+ 33.5 Confira no REPL a dualidade enunciada acima, com p = even? e a lista
+      '(1 2 3): os dois lados devem dar o mesmo booleano.
+ 33.6 Escreva ordenado?, que devolve #t se a lista de números está em ordem
+      não decrescente. Dica: você vai precisar olhar o primeiro E o segundo
+      elementos ao mesmo tempo - o Tema 39 trata desse assunto, então
+      volte aqui depois se travar agora.
+
+===============================================================================
+ TEMA 34 - remove-todos, A VARIAÇÃO DE remove-primeiro
+===============================================================================
+
+ Este era o exercício 26.2 da Parte 1; agora ele vira exemplo, porque é o
+ degrau que falta para chegar em my-filter.
+
+ Parâmetros: v (valor a remover), l (lista). Retorna uma nova lista, igual a
+ l mas sem NENHUMA ocorrência de v.
+
+     (remove-todos 3 '(4 3 8 10 3 5 5 3 2))
+     >>> '(4 8 10 5 5 2)
+     (remove-todos 7 '(4 3 8))
+     >>> '(4 3 8)
+     (remove-todos 3 '())
+     >>> '()
+
+ Relembre remove-primeiro (Tema 26):
+
+     (define (remove-primeiro v l)
+       (if (null? l)
+           '()
+           (if (equal? v (car l))
+               (cdr l)
+               (cons (car l) (remove-primeiro v (cdr l))))))
+
+ A única diferença está no ramo "achei": em remove-primeiro, achar o valor
+ ENCERRA a busca, e a resposta é (cdr l) direto. Em remove-todos, achar o
+ valor não encerra nada - as ocorrências seguintes também têm que sair.
+ Então a recursão continua sobre a cauda; o que muda é que a cabeça NÃO é
+ reencaixada com cons:
+
+     (define (remove-todos v l)
+       (if (null? l)
+           '()
+           (if (equal? v (car l))
+               (remove-todos v (cdr l))
+               (cons (car l) (remove-todos v (cdr l))))))
+
+ Ou seja, o resultado é a mesma recursão nos dois ramos; o cons é que
+ aparece só quando o elemento é para ficar. Guarde essa frase - ela é
+ literalmente a ideia do próximo tema.
+
+ CUIDADO - (cdr l) NO RAMO DO "ACHEI" REMOVE SÓ UMA OCORRÊNCIA
+ --------------------------------------------------------------
+ Trocar (remove-todos v (cdr l)) por (cdr l) transforma a função de volta
+ em remove-primeiro, e o engano passa despercebido em qualquer teste com
+ uma ocorrência só. Sempre teste funções de remoção com uma lista que
+ tenha o valor REPETIDO, como '(4 3 8 10 3 5 5 3 2).
+
+ EXERCÍCIOS
+ ----------
+ 34.1 Digite remove-todos e confira os três exemplos, mais o caso
+      '(3 3 3), que deve devolver '().
+ 34.2 Rode (remove-primeiro 3 '(4 3 8 10 3)) e (remove-todos 3 '(4 3 8 10 3))
+      e explique a diferença em uma frase.
+ 34.3 Escreva my-remove-duplicates, que devolve a lista sem elementos
+      repetidos, mantendo a primeira aparição de cada um. Dica: no caso
+      geral, a cabeça entra no resultado, mas a cauda deve ser processada
+      DEPOIS de remover dela todas as ocorrências da cabeça - remove-todos
+      já faz essa parte. Confira contra a remove-duplicates nativa.
+
+===============================================================================
+ TEMA 35 - my-filter, A GENERALIZAÇÃO DE remove-todos
+===============================================================================
+
+ remove-todos guarda os elementos DIFERENTES de v. Trocando esse teste fixo
+ por um predicado recebido como parâmetro - a mesma manobra do Tema 28
+ (dobrar -> my-map) e do Tema 32 (pertence? -> existe?) - obtém-se a função
+ que guarda os elementos que satisfazem um critério qualquer.
+
+ Parâmetros: p (predicado), l (lista). Retorna uma nova lista, só com os
+ elementos de l que satisfazem p.
+
+     (my-filter even? '(2 3 4 6 7 10))
+     >>> '(2 4 6 10)
+     (my-filter number? '(1 "oi" 2 #t))
+     >>> '(1 2)
+     (my-filter (lambda (x) (> x 5)) '(3 9 1 8))
+     >>> '(9 8)
+
+ Caso base: '(), porque o retorno é uma lista (Tema 25).
+
+ Caso geral: pelo pulo do gato, (my-filter p (cdr l)) já é a cauda
+ filtrada. A cabeça entra na frente dela com cons se satisfizer p, e é
+ simplesmente ignorada se não satisfizer:
+
+     (define (my-filter p l)
+       (if (null? l)
+           '()
+           (if (p (car l))
+               (cons (car l) (my-filter p (cdr l)))
+               (my-filter p (cdr l)))))
+
+ Compare com remove-todos do tema anterior: são a mesma função, com os dois
+ ramos do if trocados de lugar (lá o teste era "é igual a v?", que manda
+ DESCARTAR; aqui é "satisfaz p?", que manda GUARDAR).
+
+ O filter QUE JÁ EXISTE
+ ----------------------
+     (filter even? '(2 3 4 6 7 10))
+     (filter (lambda (x) (> x 5)) '(3 9 1 8))
+
+ O MAPA DAS GENERALIZAÇÕES
+ -------------------------
+ Vale parar um minuto e olhar o desenho todo. Três funções concretas,
+ escritas à mão, viraram três funções de ordem superior (Tema 27) só por
+ receberem uma função como parâmetro:
+
+     concreta            generalizada     nativa em Racket   o que faz
+     ----------------    -------------    ----------------   --------------
+     dobrar (T24)        my-map (T28)     map                transforma cada
+     pertence? (T29)     existe? (T32)    ormap              pergunta "algum?"
+     -                   todos? (T33)     andmap             pergunta "todos?"
+     remove-todos (T34)  my-filter (T35)  filter             seleciona alguns
+
+ map, filter e as duas perguntas booleanas resolvem, juntas, uma fatia
+ enorme do processamento de listas do dia a dia - em Racket e em qualquer
+ outra linguagem que as tenha (Python, JavaScript, Java, SQL...). Escrever
+ as três à mão uma vez, como você acabou de fazer, é o que faz elas
+ deixarem de ser mágica.
+
+ EXERCÍCIOS
+ ----------
+ 35.1 Digite my-filter e confira os três exemplos, mais (my-filter odd? '()).
+ 35.2 Obtenha (remove-todos 3 '(1 3 2 3)) usando my-filter e um lambda.
+      Confira com equal? contra a remove-todos do Tema 34.
+ 35.3 Use my-filter para ficar só com as strings de '("a" 1 "b" #t 2).
+ 35.4 Escreva contar-se, que conta quantos elementos satisfazem p (retorno
+      NUMÉRICO, portanto: caso base 0, operador add1). Depois escreva a
+      mesma coisa em uma linha, combinando my-filter com length.
+ 35.5 Escreva my-partition, que devolve uma lista de DUAS listas: os
+      elementos que satisfazem p e os que não satisfazem. Dica: dá para
+      resolver com duas chamadas a my-filter e um list.
+ 35.6 Escreva todos? usando my-filter e length, sem recursão explícita.
+      Dica: todos satisfazem p quando o filtrado tem o mesmo tamanho.
+
+===============================================================================
+ TEMA 36 - gaguinho (stammer): A CABEÇA PODE SE REPETIR
+===============================================================================
+
+ Daqui em diante mudam os ingredientes, não a receita: o esqueleto do Tema
+ 18 continua valendo, mas as variações ficam mais interessantes. A primeira
+ delas: nada obriga a cabeça a aparecer UMA vez no resultado.
+
+ Parâmetro: l (lista). Retorna uma nova lista com cada elemento repetido
+ duas vezes, em sequência.
+
+     (gaguinho '(3 7 8 b))
+     >>> '(3 3 7 7 8 8 b b)
+     (gaguinho '())
+     >>> '()
+
+ Caso base: '(), como sempre que o retorno é lista.
+
+ Caso geral: (gaguinho (cdr l)) já é a cauda gaguejada. O que falta para
+ ela virar a resposta? Encaixar a cabeça na frente - DUAS vezes. E, como
+ cada cons encaixa exatamente um elemento, são necessários dois cons,
+ aninhados:
+
+     (define (gaguinho l)
+       (if (null? l)
+           '()
+           (cons (car l)
+                 (cons (car l)
+                       (gaguinho (cdr l))))))
+
+ Confira também com uma lista definida à parte, no estilo do material
+ original:
+
+     (define l-um '(3 1 2 3))
+     (gaguinho l-um)
+     >>> '(3 3 1 1 2 2 3 3)
+     (gaguinho (cdr l-um))
+     >>> '(1 1 2 2 3 3)
+
+ CUIDADO - DOIS cons ANINHADOS, NÃO (list (car l) (car l))
+ ----------------------------------------------------------
+ Esta é a mesma armadilha do CUIDADO do Tema 24, em nova roupagem:
+
+     (cons (list (car l) (car l)) (gaguinho (cdr l)))   ; ERRADO
+     (gaguinho '(3 7 8))
+     >>> '((3 3) (7 7) (8 8))
+
+ O resultado é uma lista de PARES, não uma lista achatada. Sempre que a
+ resposta precisar de N elementos na frente de uma lista pronta, são N
+ cons, um dentro do outro.
+
+ EXERCÍCIOS
+ ----------
+ 36.1 Digite gaguinho e confira os exemplos.
+ 36.2 Escreva substituir, que troca todas as ocorrências de um valor por
+      outro (aqui a cabeça entra uma vez só, mas nem sempre a mesma):
+
+          (substituir 'a 'd '(c b a b))
+          >>> '(c b d b)
+
+      Use equal? na comparação, e não =, para funcionar também com
+      símbolos e strings. Depois reescreva substituir com my-map e um
+      lambda, sem recursão explícita, e compare os dois resultados.
+ 36.3 Escreva gaguinho-n, que recebe também um número n e repete cada
+      elemento n vezes. Dica: a parte "repetir a cabeça n vezes na frente
+      de uma lista pronta" é ela própria uma pequena função recursiva -
+      sobre o NÚMERO, não sobre a lista.
+ 36.4 Escreva intercalar, que insere um separador entre os elementos:
+      (intercalar '- '(a b c)) deve dar '(a - b - c). Atenção ao último
+      elemento, que não leva separador depois - de novo o caso da lista
+      com um único elemento.
+
+===============================================================================
+ TEMA 37 - my-append (juntar): QUANDO O CASO BASE NÃO É '()
+===============================================================================
+
+ Agora a função tem DUAS listas como parâmetros. Isso parece dobrar o
+ trabalho, mas não dobra: basta fazer a recursão em uma delas.
+
+ Parâmetros: l1 e l2 (listas). Retorna uma lista com os elementos de l1
+ seguidos pelos de l2.
+
+     (my-append '(4 5) '(10 15))
+     >>> '(4 5 10 15)
+     (my-append '() '(10 10 5))
+     >>> '(10 10 5)
+
+ Pense assim: a segunda lista já está pronta e no lugar certo (no fim). Quem
+ precisa ser desmontado, elemento por elemento, é l1 - e é sobre l1, e só
+ sobre ela, que a recursão acontece.
+
+ Caso base: quando l1 acaba, não sobra nada de l1 para colocar na frente, e
+ o resultado é l2 inteira. NÃO é '().
+
+ Caso geral: (my-append (cdr l1) l2) já é a resposta para a cauda de l1. A
+ cabeça de l1 entra na frente com cons.
+
+     (define (my-append l1 l2)
+       (if (null? l1)
+           l2
+           (cons (car l1) (my-append (cdr l1) l2))))
+
+ Com as listas do material original:
+
+     (define l-um '(3 1 2 3))
+     (define l-dois '(10 3 1 3))
+     (my-append l-um l-dois)
+     >>> '(3 1 2 3 10 3 1 3)
+     (my-append (cdr l-um) l-dois)
+     >>> '(1 2 3 10 3 1 3)
+
+ CUIDADO - CASO BASE '() DEVOLVE SÓ A PRIMEIRA LISTA
+ ----------------------------------------------------
+ O reflexo de escrever '() no caso base é forte, e o erro é silencioso -
+ nada quebra, só falta metade da resposta:
+
+     (define (my-append l1 l2)                        ; ERRADO
+       (if (null? l1)
+           '()
+           (cons (car l1) (my-append (cdr l1) l2))))
+
+     (my-append '(4 5) '(10 15))
+     >>> '(4 5)
+
+ A tabela do Tema 30 diz "valor TÍPICO do caso base" justamente por isso:
+ o caso base é o que a função deve responder quando não há mais o que
+ processar - e aqui, com l1 esgotada, a resposta certa é l2.
+
+ A segunda lista, repare, nunca é desmontada: ela é encaixada inteira, de
+ uma vez, no fim da cadeia de cons.
+
+ EXERCÍCIOS
+ ----------
+ 37.1 Digite my-append e confira os exemplos, inclusive
+      (my-append '() '()) e (my-append '(1 2) '()).
+ 37.2 Confira com equal? que my-append concorda com o append nativo.
+ 37.3 Rode a versão ERRADA do CUIDADO e veja o resultado incompleto.
+ 37.4 Escreva my-reverse, que inverte a lista. Dica: a cauda invertida já
+      vem pronta da recursão; falta pendurar a cabeça no FIM dela - e
+      "juntar no fim" é exatamente o que my-append faz, desde que a cabeça
+      seja embrulhada numa lista de um elemento com (list (car l)).
+ 37.5 Escreva my-append3, que junta três listas, sem usar my-append.
+      Depois escreva a mesma função usando my-append duas vezes, e
+      compare o esforço.
+
+===============================================================================
+ TEMA 38 - zíper: DUAS LISTAS CONSUMIDAS AO MESMO TEMPO
+===============================================================================
+
+ Em my-append só uma das listas era percorrida. Agora as duas são - e a
+ recursão anda nas duas ao mesmo tempo, com dois cdr por chamada.
+
+ Parâmetros: l1 e l2 (listas). Retorna uma lista alternando os elementos
+ das duas; o que sobrar da lista maior vai inteiro para o fim.
+
+     (zíper '(a 3 z) '(9 c b))
+     >>> '(a 9 3 c z b)
+     (zíper '(1 10) '(-1 0 -2 7))
+     >>> '(1 -1 10 0 -2 7)
+
+ Agora são DOIS casos base, porque qualquer uma das listas pode acabar
+ primeiro - e, em ambos, a resposta é a outra lista, o que sobrou dela (a
+ mesma ideia do caso base de my-append). Com três ramos, cond fica mais
+ legível que if aninhado:
+
+     (define (zíper l1 l2)
+       (cond [(null? l1) l2]
+             [(null? l2) l1]
+             [else (cons (car l1)
+                         (cons (car l2)
+                               (zíper (cdr l1) (cdr l2))))]))
+
+ O caso geral usa dois cons (como em gaguinho, Tema 36), mas desta vez com
+ elementos diferentes: a cabeça de l1 e a cabeça de l2, nessa ordem.
+
+ Sim, o nome tem acento e a linguagem aceita - identificadores em Racket
+ podem ter acento, ?, !, -, +, > e por aí vai. Se preferir digitar sem
+ acento, chame de ziper; só não misture os dois no mesmo arquivo.
+
+ CUIDADO - A ORDEM DOS TESTES DE LISTA VAZIA IMPORTA (E A DOS cons TAMBÉM)
+ --------------------------------------------------------------------------
+ Se o else viesse antes dos testes, (car l1) seria avaliado com l1 vazia -
+ erro. E, se os dois cons trocarem de lugar, o resultado sai com as listas
+ invertidas: '(9 a c 3 b z). Rode e veja - é um erro que passa fácil,
+ porque a lista resultante parece plausível.
+
+ EXERCÍCIOS
+ ----------
+ 38.1 Digite zíper e confira os dois exemplos, mais (zíper '() '(1 2)).
+ 38.2 Escreva misturar, que recebe duas listas de números JÁ ORDENADAS e
+      devolve uma lista ordenada com todos os elementos:
+
+          (misturar '(1 20 50) '(2 8 30))
+          >>> '(1 2 8 20 30 50)
+
+      Dica: a diferença crucial para zíper é que aqui apenas UMA das listas
+      é consumida a cada chamada - a que tem a menor cabeça. Os casos base
+      são os mesmos.
+ 38.3 Por que misturar exige que as listas de entrada já estejam ordenadas?
+      Teste com '(5 1) e '(2 3) e explique o resultado.
+ 38.4 Escreva my-map2, uma versão de my-map para duas listas: recebe uma
+      função de DOIS argumentos e duas listas, e aplica a função aos pares
+      correspondentes. (my-map2 + '(1 2 3) '(10 20 30)) deve dar
+      '(11 22 33). Decida o que fazer quando as listas têm tamanhos
+      diferentes, e explique sua escolha em um comentário.
+
+===============================================================================
+ TEMA 39 - alternar: ENXERGANDO ALÉM DO PRIMEIRO ELEMENTO
+===============================================================================
+
+ Até aqui, cada chamada olhava um elemento só: (car l). Alguns problemas
+ exigem ver o primeiro E o segundo elementos de uma vez - e, com isso, vem
+ um caso base novo.
+
+ Parâmetro: l (lista). Retorna a lista com os elementos trocados dois a
+ dois. Se o número de elementos for ímpar, o último fica inalterado.
+
+     (alternar '(3 9 1 8 0))
+     >>> '(9 3 8 1 0)
+     (alternar '(3 1 2 3))
+     >>> '(1 3 3 2)
+
+ Três coisas mudam em relação ao esqueleto habitual:
+
+   1. É preciso acessar o segundo elemento: (car (cdr l)).
+   2. A recursão pula DOIS elementos de uma vez: (cdr (cdr l)).
+   3. Além da lista vazia, é preciso testar a lista com UM ÚNICO elemento,
+      com (null? (cdr l)) - senão o (car (cdr l)) do caso geral vai
+      procurar um segundo elemento que não existe.
+
+     (define (alternar l)
+       (cond [(null? l) '()]
+             [(null? (cdr l)) l]
+             [else (cons (car (cdr l))
+                         (cons (car l)
+                               (alternar (cdr (cdr l)))))]))
+
+ O segundo caso base devolve l - que, nesse ponto, é uma lista de um
+ elemento só; devolver (list (car l)) daria no mesmo, com mais digitação.
+
+ CUIDADO - SEM O TESTE (null? (cdr l)), LISTAS ÍMPARES QUEBRAM
+ --------------------------------------------------------------
+ O erro só aparece quando a lista tem quantidade ÍMPAR de elementos:
+
+     (alternar '(1 2 3))
+     >>> car: contract violation / expected: pair? / given: '()
+
+ Com listas pares, a versão sem esse teste funciona - e é assim que o bug
+ chega em produção. Sempre teste funções que andam de dois em dois com uma
+ lista de tamanho ímpar E uma de tamanho par.
+
+ Racket, aliás, tem atalhos para essas composições de car e cdr: (cadr l)
+ é (car (cdr l)), e (cddr l) é (cdr (cdr l)). Use se quiser; aqui as
+ formas longas ficam porque deixam a estrutura mais visível.
+
+ EXERCÍCIOS
+ ----------
+ 39.1 Digite alternar e confira: '(3 9 1 8 0), '(3 1 2 3), '(7), '() e
+      (alternar (cdr (cdr '(3 1 2 3)))), que deve dar '(3 2).
+ 39.2 Rode a versão sem o teste (null? (cdr l)) com '(1 2 3 4) e depois com
+      '(1 2 3). Note que só a segunda quebra.
+ 39.3 Escreva ímpares, que devolve os elementos das posições ímpares
+      (o 1º, o 3º, o 5º...):
+
+          (ímpares '(3 3 2 1 0))
+          >>> '(3 2 0)
+
+      Dica: é alternar, porém mais simples - a cabeça entra, o segundo
+      elemento é descartado, e a recursão continua de dois em dois.
+ 39.4 Escreva pares, a companheira de ímpares (o 2º, o 4º...). Dica: dá
+      para escrevê-la quase de graça, em termos de ímpares e cdr - mas
+      cuidado com a lista vazia, que não tem cdr.
+ 39.5 Escreva ordenado? (se ainda não fez no exercício 33.6): #t se a
+      lista de números está em ordem não decrescente.
+
+          (ordenado? '(1 10 100))
+          >>> #t
+          (ordenado? '(1 10 9 15))
+          >>> #f
+
+      ATENÇÃO: aqui também é preciso ver dois elementos por vez, mas a
+      recursão anda de UM em um - por que? E por que ainda assim o caso da
+      lista unitária precisa ser testado?
+ 39.6 Escreva segue, que devolve os elementos que aparecem logo DEPOIS de
+      cada ocorrência de um valor dado:
+
+          (segue 'a '(b a c a d a b d))
+          >>> '(c d b)
+
+      Decida o que sua versão faz quando a ocorrência é o ÚLTIMO elemento
+      da lista - (segue 'b '(a b c b d b)) - e justifique a escolha em um
+      comentário. (No material original, esse caso aparece devolvendo
+      '(c d ()), o que é uma resposta possível, mas não a mais natural.)
+
+===============================================================================
+ TEMA 40 - my-take E my-drop: RECURSÃO SOBRE A LISTA E SOBRE UM NÚMERO
+===============================================================================
+
+ Último padrão desta parte: a recursão pode diminuir DUAS coisas ao mesmo
+ tempo - a lista, com cdr, e um contador, com sub1. Isso dá dois casos base
+ em vez de um: acabou a lista, ou acabou a contagem.
+
+ my-take (pegar): parâmetros n (número) e l (lista). Retorna os n primeiros
+ elementos de l.
+
+     (my-take 3 '(1 0 12 15 8))
+     >>> '(1 0 12)
+     (my-take 9 '(1 2))
+     >>> '(1 2)
+     (my-take 0 '(1 2))
+     >>> '()
+
+ Caso base: se n chegou a zero, não há mais nada a pegar - '(). Se a lista
+ acabou antes, também não há - '(). Os dois casos dão a mesma resposta, e
+ podem ser testados juntos com or.
+
+ Caso geral: a cabeça entra no resultado, e a recursão continua com UM
+ elemento a menos na lista e UM a menos no contador:
+
+     (define (my-take n l)
+       (if (or (zero? n) (null? l))
+           '()
+           (cons (car l) (my-take (sub1 n) (cdr l)))))
+
+ CUIDADO - DIMINUIR SÓ UM DOS DOIS É RECURSÃO INFINITA (OU ERRO)
+ ----------------------------------------------------------------
+ Esquecer o (sub1 n) faz a função pegar a lista inteira; esquecer o
+ (cdr l) faz a mesma cabeça ser copiada n vezes. Nos dois casos o teste
+ (zero? n) ou (null? l) até existe, mas nada caminha na direção dele. Em
+ recursão, todo parâmetro que aparece no teste de parada tem que ENCOLHER
+ na chamada recursiva.
+
+ EXERCÍCIOS
+ ----------
+ 40.1 Digite my-take e confira os três exemplos. Compare com o take nativo,
+      lembrando que a ordem dos argumentos lá é outra: (take '(1 2 3) 2).
+      Rode também (take '(1 2) 9) e veja que o nativo é mais rigoroso que a
+      nossa versão - decida qual comportamento você prefere e por quê.
+ 40.2 Escreva my-drop (tirar), o dual de my-take: devolve o que SOBRA
+      depois de descartar os n primeiros elementos.
+
+          (my-drop 3 '(1 0 12 15 8))
+          >>> '(15 8)
+
+      Dica: aqui não há cons nenhum - a resposta do caso base é a própria
+      lista que sobrou.
+ 40.3 Confira que (my-append (my-take n l) (my-drop n l)) devolve l de
+      volta, para vários valores de n. Essa identidade é a definição
+      precisa de "dual" usada no material original.
+ 40.4 Escreva enesimo, que devolve o elemento na posição n (contando de 0).
+      Dica: dá para fazer com my-drop e car, ou direto por recursão.
+ 40.5 Escreva repetir, que recebe um valor e um número n e devolve uma
+      lista com o valor repetido n vezes. Repare que aqui NÃO há lista de
+      entrada: a recursão é só sobre o número, e o caso base é n = 0.
+
+===============================================================================
+ TEMA 41 - FECHAMENTO: O QUE VOCÊ APRENDEU A RECONHECER
+===============================================================================
+
+ Todas as funções destas duas partes saíram do mesmo esqueleto de cinco
+ linhas do Tema 18. O que muda de uma para outra é sempre uma escolha entre
+ poucas opções conhecidas:
+
+   1. QUAL É O TIPO DO RETORNO? Ele determina o caso base e o operador:
+
+     Tipo de retorno   Valor típico do caso base   Operador do caso geral
+     ---------------   -------------------------   ----------------------
+     número            0, 1, etc.                  +, add1, *, ...
+     lista             '()                         cons
+     booleano          #f ou #t                    or, and, not
+
+      "Típico" porque o caso base é, na verdade, a resposta certa quando
+      não há mais nada a processar - e às vezes ela é outra coisa, como o
+      l2 de my-append (Tema 37).
+
+   2. QUANTAS VEZES A CABEÇA ESTÁ NO RESULTADO? Uma (my-map), nenhuma ou
+      uma conforme um teste (my-filter, remove-todos), ou duas (gaguinho).
+
+   3. QUANTO A RECURSÃO ANDA? Um elemento (o caso comum), dois (alternar,
+      ímpares), um em cada uma de duas listas (zíper), um numa lista e um
+      num contador (my-take).
+
+   4. QUANTOS CASOS BASE? Um (a lista vazia), dois (a lista unitária
+      também, quando se olha o segundo elemento; ou a segunda lista; ou o
+      contador zerado).
+
+   5. A OPERAÇÃO É FIXA OU É PARÂMETRO? Fixa dá dobrar, pertence?,
+      remove-todos; recebida como lambda dá my-map, existe?, todos?,
+      my-filter - as funções de ordem superior do Tema 27.
+
+ Reconhecer em qual dessas caixas um problema novo se encaixa é,
+ basicamente, saber programar recursivamente sobre listas.
+
+ EXERCÍCIOS FINAIS
+ -----------------
+ 41.1 Para cada função que você escreveu na Parte 2, preencha as cinco
+      respostas acima. Faça isso de memória primeiro, e só depois confira
+      no código.
+ 41.2 Escreva achatar, que transforma uma lista de listas numa lista só:
+      (achatar '((1 2) (3) () (4 5))) deve dar '(1 2 3 4 5). Dica: a
+      cabeça agora é uma LISTA, e juntar duas listas é my-append.
+ 41.3 Escreva ordenar, uma ordenação por inserção: a cauda ordenada já vem
+      pronta da recursão, e falta inserir a cabeça no lugar certo dentro
+      dela (escreva antes uma função inserir, que recebe um valor e uma
+      lista ordenada). Compare com a função sort nativa.
+ 41.4 Escolha três exercícios das partes 1 e 2 que você resolveu com
+      recursão explícita e reescreva-os usando map, filter, ormap ou
+      andmap. Nem todos vão caber - e entender por que não cabem é o
+      ponto do exercício.
+
+===============================================================================
+ FIM DA PARTE 2 DE RECURSÃO
+===============================================================================
