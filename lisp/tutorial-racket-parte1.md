@@ -1,0 +1,367 @@
+# RACKET NA LINHA DE COMANDO - PARTE 1: DOS ÁTOMOS ÀS LISTAS
+
+Continuação: tutorial-racket-parte2.txt
+
+Cada tema traz o conceito, os comandos para digitar, caixas CUIDADO no ponto exato onde o erro costuma acontecer, e exercícios. Tudo aqui é feito no interpretador interativo (REPL): não há arquivo para carregar nesta parte.
+
+Os exercícios não têm gabarito. A conferência é o próprio interpretador - digite, veja o que sai, e explique para si mesmo por que saiu aquilo.
+
+## TEMA 1 - INSTALAÇÃO E PRIMEIRO CONTATO
+
+### LINUX
+
+```
+sudo apt install racket       # Debian, Ubuntu
+sudo dnf install racket       # Fedora, RHEL
+```
+
+### macOS
+
+```
+brew install --cask racket
+```
+
+Confira a instalação em qualquer sistema:
+
+```
+racket --version
+```
+
+### WINDOWS
+
+Use o WSL e siga as instruções de Linux: é o caminho mais curto e o que dá a mesma versão que todo mundo. Nativamente existe
+
+```
+winget install --id minprog.racket
+```
+
+mas o instalador é interativo, e a integração com o terminal costuma dar menos trabalho dentro do WSL.
+
+### O INTERPRETADOR
+
+O comando "racket" sozinho abre o interpretador interativo (REPL - Read Eval Print Loop). O prompt é um ">".
+
+```
+racket
+```
+
+Digite isto e veja o 5 aparecer:
+
+```
+(+ 2 3)
+```
+
+Para sair:
+
+```
+(exit)
+```
+
+Ou o atalho de terminal Ctrl+D (fim de arquivo).
+
+Outros modos de uso, para mais tarde:
+
+```
+racket arquivo.rkt            executa o arquivo e volta ao terminal
+racket -i -t arquivo.rkt      carrega o arquivo e fica no REPL
+```
+
+### CUIDADO - RACKET NÃO É O DRRACKET
+
+Este material usa o comando "racket" direto no terminal, não o ambiente gráfico DrRacket. O interpretador é o mesmo por baixo dos panos; muda só a interface. Tudo que você digitar aqui funciona idêntico dentro do REPL do DrRacket.
+
+### EXERCÍCIOS
+
+- 1.1 Instale o racket e descubra qual versão você tem.
+- 1.2 Entre no REPL, calcule (+ 2 3) e saia com (exit).
+- 1.3 Entre de novo e saia agora com Ctrl+D. As duas formas de sair produzem alguma diferença visível?
+- 1.4 Digite um símbolo que não existe, como xyz. Que mensagem aparece? Guarde-a: você vai vê-la muitas vezes.
+
+## TEMA 2 - LISP: UMA FAMÍLIA DE LINGUAGENS
+
+Não existe "um" Lisp, nem "o" Lisp. Lisp é uma FAMÍLIA de linguagens que compartilham a mesma ideia de base - programas escritos como listas parentizadas - e se ramificaram em dialetos diferentes ao longo de mais de sessenta anos de história.
+
+As duas grandes escolas são Scheme e Common Lisp. Delas nasceram outros dialetos ativos hoje: Racket e Clojure são os mais conhecidos.
+
+Racket é cerca de 99% Scheme: estudar Racket é, na prática, estudar Scheme, que por sua vez é estudar Lisp. O que você aprender aqui se transporta quase sem atrito para qualquer outro dialeto da família.
+
+Racket começou como o projeto DrScheme, envolvendo pesquisadores de várias universidades dos EUA e do Canadá, e adotou o nome atual mais tarde.
+
+O Lisp original foi proposto por John McCarthy em 1959 - a segunda linguagem de programação da história, um ano depois do Fortran. Duas ideias que Lisp introduziu e que hoje parecem óbvias: coleta de lixo automática e condicionais como expressão (que devolvem um valor, em vez de só desviar o fluxo).
+
+### EXERCÍCIOS
+
+- 2.1 Rode "racket --version" e identifique qual variante do Racket está instalada.
+- 2.2 Pesquise um exemplo de código em Common Lisp e um em Clojure para o mesmo problema simples (por exemplo, somar uma lista de números). O que muda na sintaxe? O que permanece igual?
+- 2.3 Em uma frase, explique o que significa dizer que "Racket é 99% Scheme".
+
+## TEMA 3 - A SINTAXE DAS S-EXPRESSIONS
+
+Em Lisp só existe uma forma sintática: a expressão simbólica, ou sexp. Uma sexp é um ÁTOMO (um número, um símbolo, uma string, ...) ou uma LISTA de sexps entre parênteses.
+
+```
+átomo:  42        3.14        "olá"        soma
+lista:  (+ 2 3)   (soma 4 5)  (1 2 3)
+```
+
+Uma chamada de função é apenas uma lista onde o PRIMEIRO elemento é o operador e o resto são os argumentos - notação PREFIXA, sem exceção:
+
+```
+(+ 2 3)              soma: 2 + 3
+(* 4 5)              produto: 4 * 5
+(+ 2 (* 3 4))        soma, com um produto aninhado dentro
+```
+
+Repare no último exemplo: não há precedência de operadores para decorar, porque o aninhamento dos parênteses já diz a ordem das contas. O que está mais interno é calculado primeiro.
+
+### SEM VÍRGULA, SÓ ESPAÇO
+
+Os elementos de uma lista são separados por espaço (ou quebra de linha), nunca por vírgula:
+
+```
+(+ 2 3 4 5)           soma os quatro, não só os dois primeiros
+```
+
+### CUIDADO - PARÊNTESES TÊM QUE FECHAR TODOS
+
+Se você digitar um parêntese sem fechar, o REPL muda o prompt (de ">" para algo como "|") e fica esperando o resto. Isso não é erro: é o interpretador avisando que a sexp ainda está incompleta. Feche os parênteses que faltam e o resultado aparece.
+
+```
+(+ 2 (* 3 4)
+```
+
+### CUIDADO - () SOZINHO NÃO É UMA CHAMADA VÁLIDA
+
+() é uma lista vazia usada como DADO (Tema 6). Como PROGRAMA, uma lista vazia não tem operador para chamar, e o interpretador reclama. A diferença entre "lista como dado" e "lista como programa" é o assunto do Tema 8 em diante.
+
+### EXERCÍCIOS
+
+- 3.1 Escreva a sexp que soma 10, 20 e 30 de uma vez.
+- 3.2 Escreva a sexp para (2 + 3) \* (4 - 1), usando só notação prefixa.
+- 3.3 Digite um parêntese aberto sem fechar e observe o prompt mudar. Feche-o e confirme que o resultado aparece.
+- 3.4 Digite () sozinho no REPL. Que erro aparece, e por que ele faz sentido à luz do Tema 3?
+
+## TEMA 4 - ARITMÉTICA
+
+As operações básicas aceitam DOIS OU MAIS argumentos, sempre em prefixo:
+
+```
+(+ 2 3)                5
+(- 10 3)                7
+(* 2 3 4)               24
+(/ 10 2)                 5
+```
+
+(- e / com um argumento só invertem o sinal ou tiram o inverso:)
+
+```
+(- 5)                  -5
+(/ 5)                   1/5
+```
+
+Quociente e resto da divisão inteira:
+
+```
+(quotient 10 3)         3
+(remainder 10 3)        1
+(modulo 10 3)           1
+```
+
+Potência e raiz:
+
+```
+(expt 2 10)          1024
+(sqrt 16)                4
+```
+
+Comparação de valor, min e max:
+
+```
+(min 3 9)                3
+(max 3 9)                9
+```
+
+### FRAÇÕES EXATAS
+
+Aqui está uma diferença marcante em relação à maioria das linguagens: Racket NÃO arredonda uma divisão inteira que não "fecha". Ele devolve uma fração EXATA.
+
+```
+(/ 10 3)              10/3
+(/ 1 3)                1/3
+(+ 1/3 1/3)             2/3
+```
+
+Para forçar um resultado decimal (inexato), basta um dos números já vir com ponto:
+
+```
+(/ 10.0 3)           3.3333333333333335
+```
+
+### CUIDADO - / COM DOIS INTEIROS NÃO TRUNCA
+
+Quem vem de outras linguagens espera que (/ 7 2) dê 3, como em C ou Java. Em Racket dá 7/2, a fração exata. Se você quer a divisão inteira truncada, use quotient.
+
+```
+(/ 7 2)                7/2
+(quotient 7 2)           3
+```
+
+### EXERCÍCIOS
+
+- 4.1 Calcule quantas horas e quantos minutos há em 500 minutos, usando quotient e remainder.
+- 4.2 Converta 100 graus Celsius para Fahrenheit: multiplique por 9, divida por 5, some 32. Escreva tudo numa sexp só.
+- 4.3 Calcule (/ 22 7) e note que o resultado é uma fração exata. Compare com (/ 22.0 7).
+- 4.4 Calcule 2 elevado a 100 com expt. O resultado cabe num int de 64 bits nas linguagens que você conhece?
+- 4.5 Descubra o que (exact->inexact 1/3) faz, e o que faz o caminho inverso, (inexact->exact 0.5).
+
+## TEMA 5 - A CÉLULA CONS: A UNIDADE BÁSICA DE TUDO
+
+Por baixo de qualquer estrutura de dados em Lisp existe uma peça só: um par de dois ponteiros, chamado de CÉLULA CONS, ou apenas PAR (pair). Ela é construída com a função cons (de "construto"):
+
+```
+(cons 4 5)
+(pair? (cons 4 5))
+```
+
+O resultado de (cons 4 5) é impresso como '(4 . 5) - repare no PONTO entre os dois valores. Esse ponto é a marca visual de um par que não é uma lista: só tem dois elementos, e não há lista nenhuma "por dentro".
+
+Para acessar os dois lados do par existem car (o primeiro) e cdr (o segundo) - nomes históricos, herdados dos registradores da máquina onde o primeiro Lisp foi implementado:
+
+```
+(car (cons 4 5))       4
+(cdr (cons 4 5))       5
+```
+
+Tudo em Lisp - listas, árvores, qualquer estrutura encadeada - é cons cells conectadas entre si. Entender cons é entender o alicerce da linguagem inteira.
+
+### CUIDADO - cons SOZINHO NÃO É LISTA
+
+(cons 4 5) é um PAR, não uma lista - confira com (list? (cons 4 5)), que devolve #f. Uma lista é uma cadeia de pares com uma regra extra de formação, que é o assunto dos próximos dois temas.
+
+### CUIDADO - O REPL IMPRIME PARES E LISTAS COM UM APÓSTROFO NA FRENTE
+
+Repare que (cons 4 5) devolveu '(4 . 5), com um apóstrofo colado antes do parêntese, mesmo sem você ter digitado apóstrofo nenhum. O REPL imprime todo PAR e toda LISTA assim de propósito: o apóstrofo faz parte do resultado impresso, para que você possa COPIAR a saída e COLAR de volta como entrada válida. Números, strings e booleanos não ganham esse apóstrofo - só pares, listas e símbolos. O motivo do apóstrofo em si é assunto do Tema 10, na parte 2.
+
+### EXERCÍCIOS
+
+- 5.1 Crie o par que representa a coordenada (10, 20) com cons e recupere cada coordenada com car e cdr.
+- 5.2 O que (cons (cons 1 2) 3) representa? Desenhe no papel os dois pares antes de testar no REPL.
+- 5.3 Extraia o 2 de dentro de (cons (cons 1 2) 3) combinando car e cdr.
+- 5.4 Confirme com pair? que (cons 4 5) é um par, e com list? que ele não é uma lista.
+
+## TEMA 6 - A LISTA VAZIA
+
+Toda lista, para ser uma lista de verdade, precisa terminar em um valor especial: a LISTA VAZIA, escrita '(). O apóstrofo antes do parêntese é explicado no Tema 10; por enquanto, leia '() como um único átomo, o "fim da lista".
+
+```
+'()
+(null? '())
+(list? '())
+(pair? '())
+```
+
+A lista vazia PASSA no teste list?, mas NÃO passa no teste pair? - ela é uma lista (a mais curta possível: zero elementos), mas não é um par, porque não tem car nem cdr.
+
+### CUIDADO - '() NÃO É #f, E NÃO É ZERO
+
+Em vários Lisps antigos '() e #f eram a mesma coisa. Em Racket, NÃO são:
+
+```
+(if '() "vazia e verdadeira" "vazia e falsa")
+```
+
+Isso imprime "vazia é verdadeira": '() se comporta como verdadeiro num if, porque em Racket o ÚNICO valor falso é #f. Guarde essa regra, ela volta com força no Tema 13.
+
+### EXERCÍCIOS
+
+- 6.1 Confirme com null? que '() é a lista vazia, e que (null? 5) é #f.
+- 6.2 Teste (list? '()) e (pair? '()). Explique com suas palavras por que os resultados são diferentes.
+- 6.3 Rode o exemplo do CUIDADO acima e confirme na prática que '() não é falsa em Racket.
+
+## TEMA 7 - LISTA COMO CADEIA DE CÉLULAS CONS
+
+Uma lista é uma sequência de cons cells, cada uma guardando um elemento no car e ENCADEANDO PARA A PRÓXIMA no cdr - até terminar em '().
+
+```
+(cons 10 '())
+(cons 10 (cons 100 '()))
+(cons 10 (cons 100 (cons 1000 '())))
+```
+
+Desenhando a última em caixas:
+
+```
+[10|*]->[100|*]->[1000|*]->'()
+```
+
+Cada colchete é uma cons cell: o primeiro compartimento (car) guarda o dado, o segundo (cdr) aponta para a próxima célula, e a última aponta para a lista vazia - o "fim de linha" que fecha a cadeia.
+
+Confira que o resultado das três linhas acima é mesmo uma lista:
+
+```
+(list? (cons 10 (cons 100 (cons 1000 '()))))
+(car (cons 10 (cons 100 (cons 1000 '()))))
+(cdr (cons 10 (cons 100 (cons 1000 '()))))
+```
+
+O cdr de uma lista é sempre O RESTO DA LISTA - e por isso ele também é uma lista, até a última célula, cujo cdr é '() e fecha a cadeia.
+
+### CUIDADO - O QUE TERMINA EM '() É LISTA; O QUE TERMINA EM OUTRA COISA, NÃO É
+
+(cons 1 (cons 2 3)) também é uma cadeia de cons, mas a última célula termina em 3, não em '(). Por isso ela NÃO é uma lista - list? devolve #f, embora pair? devolva #t. Isso se chama uma lista IMPRÓPRIA (ou par pontuado encadeado), e aparece impressa com o ponto: '(1 2 . 3).
+
+```
+(cons 1 (cons 2 3))
+(list? (cons 1 (cons 2 3)))
+```
+
+### EXERCÍCIOS
+
+- 7.1 Construa a lista (7 8 9) usando só cons e '(), sem usar list nem quote de lista.
+- 7.2 Desenhe em caixas, como no exemplo acima, a lista que você acabou de construir.
+- 7.3 Construa (cons 1 (cons 2 (cons 3 4))) e confirme com list? que ela NÃO é uma lista. Onde exatamente a cadeia deixa de terminar em '()?
+- 7.4 Para uma lista de 3 elementos, quantas cons cells são necessárias? E para uma de n elementos?
+
+## TEMA 8 - LISTA COMO SYNTACTIC SUGAR
+
+Escrever listas encadeando cons à mão funciona, mas cansa. Por isso existem dois atalhos, dois "syntactic sugar", para o mesmo dado.
+
+O primeiro é a notação entre aspas, que será formalizada no Tema 10:
+
+```
+'(10 100 1000)
+```
+
+Ela é EXATAMENTE o mesmo dado que a cadeia manual de cons do Tema 7 - compare os dois:
+
+```
+(equal? '(10 100 1000) (cons 10 (cons 100 (cons 1000 '()))))
+```
+
+O segundo é a função list, que constrói a mesma cadeia, mas AVALIANDO cada argumento antes de encadear:
+
+```
+(list 10 100 1000)
+(define x 5)
+(list x (+ x 1) (+ x 2))
+```
+
+### CUIDADO - quote NÃO AVALIA, list AVALIA
+
+Essa é a diferença que importa entre os dois atalhos. Compare:
+
+```
+(list (+ 2 3) 10)
+'((+ 2 3) 10)
+```
+
+O primeiro devolve '(5 10): a soma foi calculada antes de entrar na lista. O segundo devolve a lista de três elementos '((+ 2 3) 10), com a soma intacta, ainda escrita como sexp - porque quote desliga a avaliação de tudo que está dentro dela. O Tema 9, na parte 2, explora essa diferença a fundo.
+
+### EXERCÍCIOS
+
+- 8.1 Construa a lista (1 2 3 4 5) de três formas: cons manual, '(...) e (list ...). Confirme com equal? que as três são iguais.
+- 8.2 Com (define x 10), compare o resultado de (list x x) e '(x x). Explique a diferença.
+- 8.3 Escreva uma lista de listas, por exemplo os pares (1 2), (3 4) e (5 6) dentro de uma lista maior, usando '(...).
+- 8.4 O que (list) sem argumento nenhum devolve? Compare com '().
+
+## FIM DA PARTE 1 - continue em tutorial-racket-parte2.txt

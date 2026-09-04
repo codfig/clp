@@ -3,11 +3,20 @@
 ===============================================================================
  Pré-requisito: tutorial-racket-parte1.txt e tutorial-racket-parte2.txt (na
  pasta lisp/), pelo menos até o Tema 12 (define).
+ Biblioteca....: exemplos-parte1.rkt (mesma pasta)
 
  Baseado no material original do curso, recursao01.pdf. Continua a mesma
  estrutura dos tutoriais anteriores: conceito, comandos para digitar, caixas
  CUIDADO no ponto exato onde o erro costuma acontecer, e exercícios sem
  gabarito - a conferência é o próprio REPL.
+
+ A biblioteca exemplos-parte1.rkt traz TODOS os exemplos demonstrados neste
+ texto, prontos para carregar - no DrRacket com Run, no VS Code com
+ "Racket: Load file in REPL" (extensão Magic Racket), ou no terminal com
+
+     racket -i -e '(enter! "exemplos-parte1.rkt")'
+
+ Ela contém apenas os exemplos do texto - nenhuma resposta de exercício.
 
 ===============================================================================
  TEMA 16 - RELEMBRANDO define

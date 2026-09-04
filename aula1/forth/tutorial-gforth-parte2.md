@@ -1,0 +1,337 @@
+# FORTH COM gforth - PARTE 2: DEFININDO A SUA LINGUAGEM
+
+Pre-requisito: tutorial-gforth-parte1.txt (temas 1 a 4)  
+Biblioteca....: exemplos-parte2.fs (mesma pasta)
+
+Na Parte 1 voce usou o Forth que ja existia. Na Parte 2 voce passa a estender a linguagem: cada palavra que voce define vira parte do vocabulario, indistinguivel das que vieram de fabrica. Essa e a ideia central de Forth.
+
+A biblioteca exemplos-parte2.fs traz TODOS os exemplos demonstrados neste texto, prontos para carregar:
+
+```
+gforth exemplos-parte2.fs
+```
+
+Ela contem apenas os exemplos do texto - nenhuma resposta de exercicio.
+
+## TEMA 5 - DEFININDO SUAS PROPRIAS PALAVRAS
+
+A sintaxe tem tres partes: dois-pontos, o corpo, ponto-e-virgula.
+
+```
+: NOME  ( antes -- depois )  corpo ;
+```
+
+Os espacos em volta do ":" e do ";" sao obrigatorios - eles tambem sao palavras.
+
+```
+: QUADRADO DUP * ;
+7 QUADRADO .                \ 49
+```
+
+Voce acabou de aumentar a linguagem. QUADRADO agora existe do mesmo jeito que DUP e "+".
+
+```
+: CUBO DUP DUP * * ;
+3 CUBO .                    \ 27
+```
+
+Palavras se combinam com palavras, e e assim que programas Forth crescem:
+
+```
+: DOBRO 2 * ;
+: QUADRUPLO DOBRO DOBRO ;
+5 QUADRUPLO .               \ 20
+```
+
+Um exemplo com mais de uma operacao:
+
+```
+: CELSIUS>F 9 * 5 / 32 + ;
+100 CELSIUS>F .             \ 212
+```
+
+### COMENTARIOS E DOCUMENTACAO
+
+```
+\ comenta ate o fim da linha    (precisa do espaco depois da barra)
+( comenta ate o parentese )     (precisa do espaco depois do abre)
+```
+
+A convencao ( antes -- depois ) da Parte 1 e sagrada: escreva o efeito de pilha em TODA palavra que definir. Em Forth essa linha e a assinatura da funcao - sem ela, ninguem consegue usar o seu codigo, nem voce daqui a uma semana.
+
+```
+: MEDIA2 ( a b -- media ) + 2 / ;
+```
+
+### CUIDADO - REDEFINIR NAO REESCREVE O PASSADO
+
+Se voce redefinir DOBRO, a palavra QUADRUPLO definida antes continua usando a versao ANTIGA: ela ja foi compilada. Isso surpreende quem espera o comportamento de uma linguagem interpretada. Para valer em tudo, recarregue o arquivo inteiro.
+
+### EXERCICIOS
+
+- 5.1 Defina TRIPLO ( n -- 3n ).
+- 5.2 Defina F>CELSIUS, a conversao inversa da que foi demonstrada.
+- 5.3 Defina PERCENTUAL ( parte total -- % ).
+- 5.4 Defina OITAVO usando DOBRO tres vezes.
+- 5.5 Defina QUINTA-POTENCIA usando QUADRADO e CUBO.
+- 5.6 Redefina DOBRO para triplicar e depois rode QUADRUPLO. O resultado surpreende? Explique.
+
+## TEMA 6 - IMPRIMINDO TEXTO
+
+Voce ja conhece o "." e o ".s". As demais:
+
+```
+." texto"    imprime o texto literal
+CR           quebra a linha
+SPACE        imprime um espaco       SPACES  imprime n espacos
+EMIT         imprime UM caractere pelo codigo ASCII
+.R           imprime alinhado a direita numa largura
+U.           imprime como numero sem sinal
+S" texto"    empilha ( endereco tamanho )   TYPE  imprime isso
+
+: OLA ." Ola, mundo!" CR ;
+OLA
+
+65 EMIT                     \ A
+S" texto na pilha" TYPE CR
+123 8 .R CR                 \ imprime "     123" (largura 8)
+```
+
+Misturando texto e valor:
+
+```
+: ETIQUETA ( n -- ) ." valor = " . CR ;
+42 ETIQUETA                 \ valor = 42
+```
+
+### CUIDADO - O ESPACO DEPOIS DAS ASPAS
+
+." e S" sao PALAVRAS, e por isso precisam de espaco depois:
+
+```
+." ok"      correto
+."ok"       erro: palavra desconhecida ."ok"
+```
+
+O espaco logo apos as aspas faz parte da sintaxe e nao aparece na saida.
+
+### EXERCICIOS
+
+- 6.1 Defina SAUDACAO, que imprime seu nome e quebra a linha.
+- 6.2 Imprima o alfabeto usando EMIT, um caractere por vez, sem laco (por enquanto).
+- 6.3 Defina uma palavra que imprima um valor entre colchetes: [42].
+- 6.4 Use .R para imprimir 1, 22 e 333 alinhados a direita, um por linha.
+- 6.5 Descubra o codigo ASCII do seu inicial usando CHAR, e imprima-a com EMIT.
+- 6.6 Qual a diferenca entre "." e "U." ao imprimir -1? Teste e explique.
+
+## TEMA 7 - CONSTANTES E VARIAVEIS
+
+CONSTANT guarda um valor fixo. Usar o nome empilha o VALOR:
+
+```
+100 CONSTANT MAXIMO
+MAXIMO .                    \ 100
+```
+
+VARIABLE reserva memoria. Usar o nome empilha o ENDERECO, nao o valor:
+
+```
+VARIABLE CONTADOR
+0 CONTADOR !                \ grava 0
+CONTADOR @ .                \ le e imprime: 0
+
+!  ( n addr -- )   grava
+@  ( addr -- n )   le
++! ( n addr -- )   soma ao valor guardado
+
+: INCREMENTA ( -- ) 1 CONTADOR +! ;
+INCREMENTA INCREMENTA INCREMENTA
+CONTADOR @ .                \ 3
+```
+
+Uma palavra para inspecionar o estado:
+
+```
+: MOSTRA ( -- ) ." contador = " CONTADOR @ . CR ;
+MOSTRA
+```
+
+### CUIDADO - O ERRO CLASSICO DO @
+
+Isto imprime um numero enorme e sem sentido:
+
+```
+CONTADOR .
+```
+
+Porque imprimiu o ENDERECO, nao o conteudo. VARIABLE sempre empilha endereco; para ver o valor e sempre "CONTADOR @ .". Se um numero estranhissimo aparecer na sua saida, procure um @ faltando.
+
+### EXERCICIOS
+
+- 7.1 Crie a constante PI-INTEIRO valendo 3 e calcule a area aproximada de um circulo de raio 10.
+- 7.2 Crie a variavel TOTAL, inicialize em zero e defina SOMA-NELE ( n -- ) que acumula nela.
+- 7.3 Defina ZERAR, que devolve TOTAL a zero.
+- 7.4 Some 10, 20 e 30 no TOTAL e confira o resultado.
+- 7.5 O que acontece se voce usar uma VARIABLE sem inicializar? Teste.
+- 7.6 Por que MAXIMO nao precisa de @ e CONTADOR precisa? Explique a diferenca entre as duas.
+
+## TEMA 8 - COMPARACOES E CONDICIONAIS
+
+Os comparadores consomem dois valores e devolvem um sinalizador:
+
+```
+=  <>  <  >  <=  >=  0=  0<  0>
+```
+
+Em Forth, falso e 0 e verdadeiro e -1 (todos os bits em 1):
+
+```
+3 5 < .                     \ -1
+3 5 > .                     \ 0
+5 5 = .                     \ -1
+```
+
+A estrutura condicional consome o sinalizador:
+
+```
+cond IF ... THEN
+cond IF ... ELSE ... THEN
+
+: POSITIVO? ( n -- ) 0 > IF ." positivo" ELSE ." nao positivo" THEN CR ;
+7 POSITIVO?
+-7 POSITIVO?
+```
+
+Condicionais se aninham. Repare que os THEN se acumulam no fim:
+
+```
+: SINAL ( n -- )
+   DUP 0 > IF   ." positivo"
+   ELSE DUP 0 < IF ." negativo"
+   ELSE            ." zero"
+   THEN THEN DROP CR ;
+5 SINAL   -3 SINAL   0 SINAL
+```
+
+### CUIDADO - THEN NAO E "ENTAO"
+
+Em Forth, THEN significa FIM DO IF - o equivalente ao "endif" de outras linguagens. A leitura correta e "SE cond, faca isto, PRONTO". Traduzir THEN como "entao" e a maior fonte de confusao para quem chega de outras linguagens.
+
+### CUIDADO - O QUE SOBRA NA PILHA
+
+Todos os ramos de um IF devem deixar a pilha no MESMO estado. Se um ramo consome um valor e o outro nao, a palavra funciona nos testes e quebra depois, de um jeito dificil de achar. No SINAL acima, os tres ramos terminam com o n ainda na pilha, e por isso ha um unico DROP no fim.
+
+### EXERCICIOS
+
+- 8.1 Defina PAR? ( n -- flag ) usando MOD e 0=.
+- 8.2 Defina PAR-IMPAR, que imprime "par" ou "impar".
+- 8.3 Defina MAIOR ( a b -- max ) sem usar a palavra MAX.
+- 8.4 Defina MENOR ( a b -- min ).
+- 8.5 Defina MAIORIDADE ( idade -- ), que imprime "maior" ou "menor".
+- 8.6 Defina NOTA ( n -- ), que imprime A para 90 ou mais, B para 80 ou mais, C para 70 ou mais, e "reprovado" abaixo disso.
+- 8.7 Defina BISSEXTO? ( ano -- flag ): divisivel por 4 e nao por 100, OU divisivel por 400.
+- 8.8 Por que "3 5 <" devolve -1 e nao 1? Descubra o que acontece se voce usar 1 como verdadeiro num IF.
+
+## TEMA 9 - LACOS CONTADOS: ?DO ... LOOP
+
+A sintaxe e "limite inicio ?DO corpo LOOP". O laco vai de "inicio" ate "limite - 1". Dentro dele, I e o indice atual:
+
+```
+: CONTAR ( n -- ) 0 ?DO I . LOOP CR ;
+10 CONTAR                   \ 0 1 2 3 4 5 6 7 8 9
+```
+
+Agora da para imprimir o alfabeto de verdade:
+
+```
+: ALFABETO ( -- ) 91 65 ?DO I EMIT LOOP CR ;
+ALFABETO
+```
+
+Lacos aninhados: I e o indice do laco INTERNO, J o do externo.
+
+```
+: TABUADA ( n -- )
+   CR 11 1 ?DO
+      DUP . ." x " I . ." = " DUP I * . CR
+   LOOP DROP ;
+7 TABUADA
+```
+
+Outras palavras do laco:
+
+```
++LOOP    avanca por um passo diferente de 1 (aceita passo negativo)
+LEAVE    abandona o laco antes da hora
+UNLOOP   limpa o laco antes de um EXIT
+```
+
+### CUIDADO - USE ?DO, NAO DO
+
+Existe tambem a palavra DO, e ela e uma armadilha: DO testa a condicao apenas no FIM da volta. Se o limite for igual ao indice inicial, como em "0 0 DO", o laco nao roda zero vezes - ele roda 2^64 vezes. O ?DO testa ANTES e nao executa nenhuma vez, que e o que voce quer em 99% dos casos.
+
+### EXERCICIOS
+
+- 9.1 Defina PARES ( n -- ), que imprime os pares de 0 a n-1, usando +LOOP.
+- 9.2 Defina REGRESSIVA ( n -- ), que conta de n ate 0, usando passo negativo.
+- 9.3 Defina SOMA-ATE ( n -- soma ), a soma de 1 ate n. Confira com 100: deve dar 5050.
+- 9.4 Defina FATORIAL ( n -- n! ). Ate que valor de n ele funciona antes de estourar os 64 bits?
+- 9.5 Defina LINHA ( -- ), que imprime 60 hifens e quebra a linha.
+- 9.6 Defina MATRIZ ( -- ), que imprime a tabela de multiplicacao de 1 a 3 usando lacos aninhados e I e J.
+- 9.7 Defina ACHA-5, que percorre de 0 a 9 e para no 5 usando LEAVE.
+- 9.8 Troque um ?DO por DO num caso em que o limite e igual ao inicio, e veja o que acontece. Interrompa com Ctrl-C.
+
+## TEMA 10 - LACOS CONDICIONAIS: BEGIN
+
+Quando voce nao sabe de antemao quantas voltas serao, o laco e condicional. Ha tres formas:
+
+```
+BEGIN corpo cond UNTIL          repete ATE a condicao ser verdadeira
+BEGIN cond WHILE corpo REPEAT   repete ENQUANTO a condicao for verdadeira
+BEGIN corpo AGAIN               laco infinito (saia com EXIT)
+```
+
+O UNTIL testa no fim, entao o corpo roda pelo menos uma vez:
+
+```
+: REGRESSIVA2 ( n -- ) BEGIN DUP . 1- DUP 0= UNTIL DROP CR ;
+5 REGRESSIVA2               \ 5 4 3 2 1
+```
+
+O WHILE testa no comeco, entao o corpo pode nao rodar nenhuma vez. O algoritmo de Euclides cabe numa linha:
+
+```
+: MDC ( a b -- mdc ) BEGIN DUP WHILE TUCK MOD REPEAT DROP ;
+48 18 MDC .                 \ 6
+1071 462 MDC .              \ 21
+```
+
+Vale a pena seguir o MDC com .s dentro do laco: e o melhor exercicio de leitura de pilha desta parte.
+
+### CUIDADO - O LACO INFINITO DE VERDADE
+
+Se a condicao do UNTIL nunca ficar verdadeira, o gforth trava e nao devolve o prompt. Saia com Ctrl-C. Antes de rodar um BEGIN, confira que alguma coisa dentro do corpo modifica o valor que a condicao testa - o esquecimento do "1-" e o caso classico.
+
+### CUIDADO - WHILE CONSOME O SINALIZADOR
+
+O WHILE tira o sinalizador da pilha. Quando o laco termina, o que sobra e o que estava embaixo dele - por isso o MDC termina com um DROP. Desenhe a pilha no papel antes de escrever um BEGIN...WHILE...REPEAT.
+
+### EXERCICIOS
+
+- 10.1 Defina DOBRA-ATE ( n limite -- r ), que dobra n ate passar do limite. Com 1 e 1000, deve dar 1024.
+- 10.2 Defina CONTA-DIGITOS ( n -- qtd ). Confira: 12345 tem 5, e 7 tem 1.
+- 10.3 Defina SOMA-DIGITOS ( n -- soma ): 1234 deve dar 10.
+- 10.4 Defina INVERTE ( n -- n ), que inverte os digitos: 1234 vira 4321.
+- 10.5 Reescreva REGRESSIVA2 com BEGIN...WHILE...REPEAT em vez de UNTIL. O comportamento muda quando n e zero?
+- 10.6 Escreva um laco que soma numeros ate a soma passar de 100 e informa quantas voltas foram necessarias.
+- 10.7 Qual das tres formas de BEGIN voce usaria para ler entrada ate o usuario digitar zero? Justifique.
+
+## ENCERRAMENTO
+
+Voce cobriu o nucleo de Forth: a pilha, a aritmetica posfixa, as palavras de manipulacao, a definicao de novas palavras, saida de texto, memoria nomeada, condicionais e as duas familias de laco.
+
+As tres ideias que ficam:
+
+1. A pilha e o unico canal de comunicacao entre as palavras. Documentar o efeito ( antes -- depois ) nao e burocracia, e a interface.
+2. Definir palavras curtas e combina-las e o metodo, nao um estilo. Se uma definicao precisa de mais de tres palavras de manipulacao seguidas, provavelmente ela deveria ser duas definicoes.
+3. A linguagem nao tem um conjunto fixo de comandos: o que voce define passa a ser indistinguivel do que veio de fabrica. Forth nao e uma linguagem que voce usa, e uma que voce constroi.

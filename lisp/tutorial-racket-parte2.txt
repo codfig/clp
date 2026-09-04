@@ -2,9 +2,18 @@
  RACKET NA LINHA DE COMANDO - PARTE 2: EVAL, DEFINE E CONDICIONAIS
 ===============================================================================
  Pré-requisito: tutorial-racket-parte1.txt
+ Biblioteca....: exemplos-parte2.rkt (mesma pasta)
 
  Continua a mesma estrutura: conceito, comandos para digitar, caixas
  CUIDADO, e exercícios sem gabarito - a conferência é o próprio REPL.
+
+ A biblioteca exemplos-parte2.rkt traz TODOS os exemplos demonstrados neste
+ texto, prontos para carregar - no DrRacket com Run, no VS Code com
+ "Racket: Load file in REPL" (extensão Magic Racket), ou no terminal com
+
+     racket -i -e '(enter! "exemplos-parte2.rkt")'
+
+ Ela contém apenas os exemplos do texto - nenhuma resposta de exercício.
 
 ===============================================================================
  TEMA 9 - EVAL, E O EVAL DE LISTAS COM APÓSTROFO

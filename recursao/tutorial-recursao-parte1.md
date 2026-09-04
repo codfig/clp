@@ -1,0 +1,399 @@
+# PROGRAMAÇÃO RECURSIVA: PROCESSAMENTO DE LISTAS EM RACKET
+
+Pré-requisito: tutorial-racket-parte1.txt e tutorial-racket-parte2.txt (na pasta lisp/), pelo menos até o Tema 12 (define).  
+Biblioteca....: exemplos-parte1.rkt (mesma pasta)
+
+Baseado no material original do curso, recursao01.pdf. Continua a mesma estrutura dos tutoriais anteriores: conceito, comandos para digitar, caixas CUIDADO no ponto exato onde o erro costuma acontecer, e exercícios sem gabarito - a conferência é o próprio REPL.
+
+A biblioteca exemplos-parte1.rkt traz TODOS os exemplos demonstrados neste texto, prontos para carregar - no DrRacket com Run, no VS Code com "Racket: Load file in REPL" (extensão Magic Racket), ou no terminal com
+
+```
+racket -i -e '(enter! "exemplos-parte1.rkt")'
+```
+
+Ela contém apenas os exemplos do texto - nenhuma resposta de exercício.
+
+## TEMA 16 - RELEMBRANDO define
+
+Uma função nomeada em Racket se define assim:
+
+```
+(define (<nome> <param1> <param2> ...) <corpo>)
+```
+
+O corpo é UMA sexp só (se precisar de várias etapas, aninham-se expressões). O valor do corpo é o que a função devolve - não existe "return" separado, é o próprio corpo que é a resposta.
+
+```
+(define (quadrado x) (* x x))
+(quadrado 5)
+
+(define (media a b) (/ (+ a b) 2))
+(media 7 10)
+```
+
+Esse resumo é só para destravar o vocabulário. A explicação completa de define, incluindo sua relação com lambda, está no Tema 12 do tutorial-racket-parte2.txt - e volta com mais detalhe aqui no Tema 27.
+
+### EXERCÍCIOS
+
+- 16.1 Defina uma função cubo, que eleva um número ao cubo (use expt ou uma multiplicação tripla).
+- 16.2 Defina uma função metade, que devolve a metade de um número.
+
+## TEMA 17 - LISTAS: ESTRUTURAS NATURALMENTE RECURSIVAS
+
+Lembre do Tema 7 (tutorial-racket-parte1.txt): toda lista é ou a lista vazia '(), ou uma cons cell cujo car é um elemento e cujo cdr é OUTRA LISTA, menor. Ou seja, a própria DEFINIÇÃO de lista é recursiva - uma lista é feita de listas, até chegar em '().
+
+```
+'(4 0 -2 3)  =  (cons 4 '(0 -2 3))  =  (cons 4 (cons 0 '(-2 3)))  = ...
+```
+
+Como o DADO é recursivo por natureza, o jeito mais natural de PROCESSÁ-LO também é recursivo: para lidar com uma lista, lida-se com a cabeça (car) e se resolve o resto (cdr) pedindo ajuda... à própria função, aplicada a uma lista menor. É essa ideia que o resto deste tutorial desenvolve.
+
+### EXERCÍCIOS
+
+- 17.1 Reescreva '(9 8 7 6) inteiramente com cons e '(), como no Tema 7.
+- 17.2 Em uma frase, explique por que dizer "uma lista é feita de listas" faz sentido.
+
+## TEMA 18 - O JEITÃO DE UMA FUNÇÃO RECURSIVA SOBRE LISTAS
+
+Toda função recursiva que processa uma lista tem a mesma cara por baixo, os mesmos três ingredientes obrigatórios:
+
+1. A lista é sempre um dos parâmetros.
+2. O primeiro teste é sempre "a lista está vazia?" (null? l).
+3. No caso geral (lista não vazia), aparecem (car l) - a cabeça - e uma chamada recursiva sobre (cdr l) - a cauda.
+
+O esqueleto, sempre igual:
+
+```
+(define (<função> l [outros parâmetros])
+  (if (null? l)
+      (.. caso base ..)
+      (.. caso geral, combinando ..
+          .. (car l) ..
+          .. com ..
+          .. (<função> (cdr l) [outros parâmetros]) ..)))
+```
+
+### CUIDADO - SEM O TESTE (null? l), NÃO HÁ ONDE A RECURSÃO PARAR
+
+Se você esquecer o teste da lista vazia, a chamada (&lt;função> (cdr l)) vai continuar sendo feita mesmo depois que a lista acabar - e nesse ponto (cdr
+
+- l) some (a lista vazia não tem cdr) e o interpretador reclama. O teste de
+lista vazia não é só "boa prática": é o que garante que a recursão TERMINA.
+
+### EXERCÍCIOS
+
+- 18.1 Sem rodar nada ainda, escreva de memória o esqueleto acima.
+- 18.2 Aponte, no esqueleto, qual parte é responsável por GARANTIR que a recursão para algum dia.
+
+## TEMA 19 - O PULO DO GATO: PENSANDO COMO A MÁQUINA
+
+A parte mais difícil de programar recursivamente não é a sintaxe - é confiar na recursão sem tentar "rodar tudo na cabeça".
+
+Um ser humano, olhando para '(4 0 -2 3 9 6 20 -4 7), vê a lista inteira de uma vez. Uma máquina (e você, imitando-a) não tem esse luxo: ela enxerga CLARAMENTE só a cabeça. O resto fica borrado, indiscernível:
+
+```
+Humano:  '(4 0 -2 3 9 6 20 -4 7)
+Máquina: '(4 <bla bla bla bla...>)
+```
+
+O pulo do gato é este: não tente enxergar através do borrão. Em vez disso, IMAGINE que a chamada recursiva sobre a cauda já está pronta, já resolvida
+
+- como se alguém confiável tivesse te entregado a resposta certa para
+"processar o resto da lista". Sua única tarefa é combinar essa resposta pronta com a cabeça, que essa sim você enxerga.
+
+Pense em dois tipos de tijolinho sobre a mesa:
+
+```
+- (car l)                       - a cabeça, o que você vê direto
+- (<função> (cdr l) [etc])      - o resto, já pronto, tratado como dado
+```
+
+Combine os tijolinhos com o operador certo (soma, cons, and, o que for) e pronto: nem precisa saber COMO a recursão por dentro chegou naquele resultado.
+
+### CUIDADO - NÃO TENTE SIMULAR TODAS AS CHAMADAS DE UMA VEZ
+
+É tentador, ao escrever a função, tentar rastrear mentalmente cada chamada recursiva, uma por uma, até a lista vazia. Isso funciona para CONFERIR um resultado depois de pronto, mas atrapalha na hora de CONSTRUIR a função. Na construção, trate a chamada recursiva como uma caixa preta que já faz o trabalho certo - essa confiança é o próprio "pulo do gato".
+
+### EXERCÍCIOS
+
+- 19.1 Com suas palavras, explique a diferença entre "rastrear a recursão" e "confiar na recursão".
+- 19.2 Por que, para a máquina do exemplo, a cauda da lista é descrita como "borrada"?
+
+## TEMA 20 - PRIMEIRO EXEMPLO: A FUNÇÃO somar
+
+Parâmetro: l (lista de números). Retorna a soma de todos os elementos.
+
+```
+(somar '(4 6 0 2))
+>>> 12
+(somar '())
+>>> 0
+```
+
+Construindo, seguindo o esqueleto do Tema 18:
+
+Caso base: a soma dos elementos de uma lista vazia é 0 - não há o que somar.
+
+Caso geral: aplicando o pulo do gato, imagine que (somar (cdr l)) já é a soma pronta da cauda. Falta só somar a cabeça a esse resultado.
+
+```
+(define (somar l)
+  (if (null? l)
+      0
+      (+ (car l) (somar (cdr l)))))
+```
+
+### EXERCÍCIOS
+
+- 20.1 Rode (somar '(1 2 3 4 5)) e confira contas na mão.
+- 20.2 O que acontece se você trocar o 0 do caso base por 10? Rode e explique o resultado à luz de como a recursão se acumula.
+
+## TEMA 21 - SEGUNDO EXEMPLO: A FUNÇÃO contar (ocorrências de um valor)
+
+Parâmetros: x (valor procurado), l (lista). Retorna quantas vezes x aparece em l.
+
+```
+(contar 3 '(3 5 3 1))
+>>> 2
+(contar 3 '(4 6 0 2))
+>>> 0
+(contar 3 '())
+>>> 0
+```
+
+Caso base: uma lista vazia não tem nenhuma ocorrência de x. Zero.
+
+Caso geral: de novo, o pulo do gato - (contar x (cdr l)) já é a contagem pronta na cauda. Falta decidir se a CABEÇA também conta: se (car l) for igual a x, soma-se 1 a essa contagem; senão, ela entra sem alterar nada.
+
+```
+(define (contar x l)
+  (if (null? l)
+      0
+      (if (equal? x (car l))
+          (add1 (contar x (cdr l)))
+          (contar x (cdr l)))))
+```
+
+Repare que (equal? x (car l)) é o mesmo teste do Tema 9 do tutorial de recursão em pertence? (se você já viu esse exemplo no material do curso) - usar equal?, e não =, mantém a função funcionando também para listas de strings, símbolos etc., não só números.
+
+### EXERCÍCIOS
+
+- 21.1 Rode (contar 5 '(5 5 5)) e confira.
+- 21.2 Reescreva contar usando cond em vez de if aninhado (veja o Tema 15 do tutorial-racket-parte2.txt se precisar relembrar a sintaxe).
+
+## TEMA 22 - EXERCÍCIO: contar-elementos (o comprimento da lista)
+
+Sua vez: escreva contar-elementos, que recebe uma lista e devolve quantos elementos ela tem - sem usar a função pronta length.
+
+```
+(contar-elementos '(3 1 4))
+>>> 3
+(contar-elementos '())
+>>> 0
+(contar-elementos '(5 1 4 6 10))
+>>> 5
+```
+
+Dica: siga o mesmo esqueleto dos Temas 20 e 21. Uma diferença importante em relação a contar: aqui não importa o VALOR de cada elemento, só a presença dele - a cabeça (car l) nem chega a ser examinada, só ajuda a "marcar mais um".
+
+### EXERCÍCIOS
+
+- 22.1 Implemente contar-elementos e confira os três exemplos acima.
+- 22.2 Qual é o caso base? Por que ele faz sentido mesmo sem "ver" nenhum elemento?
+
+## TEMA 23 - TIPO DE RETORNO, CASO BASE E OPERADOR: A TABELA
+
+Repare num padrão nas funções somar e contar: as duas devolvem um NÚMERO. E, em funções desse tipo, duas peças sempre andam juntas:
+
+- o CASO BASE típico é um valor "neutro" para a operação usada (0 para soma e contagem, 1 se fosse produto, etc.);
+- o OPERADOR do caso geral é aritmético (+, add1, \*, ...).
+
+```
+Tipo de retorno   Valor típico do caso base   Operador do caso geral
+---------------   --------------------------  --------------------------
+número             0, 1, etc.                  +, add1, *, ...
+```
+
+Isso não é coincidência: o caso base precisa ser o elemento que, combinado pelo operador do caso geral, não muda o resultado (some 0, some 1 do comprimento junto com add1, etc.). Guarde essa tabela - ela vai crescer no próximo tema.
+
+### EXERCÍCIOS
+
+- 23.1 Em somar, o operador é + e o caso base é 0. Se o operador fosse \* (um produto de todos os elementos), qual teria que ser o caso base?
+- 23.2 Escreva a função produto, que multiplica todos os elementos de uma lista, usando a resposta do exercício anterior.
+
+## TEMA 24 - A FUNÇÃO dobrar
+
+Parâmetro: l (lista de números). Retorna uma NOVA lista, com cada elemento igual ao dobro do elemento correspondente na lista original.
+
+```
+(dobrar '(6 7 1 -3 0))
+>>> '(12 14 2 -6 0)
+(dobrar '())
+>>> '()
+```
+
+Aqui aparece a primeira diferença de fundo em relação a somar e contar: o RESULTADO não é um número, é uma LISTA.
+
+Caso base: a lista vazia dobrada continua vazia - '().
+
+Caso geral: pelo pulo do gato, (dobrar (cdr l)) já é a lista da cauda, com cada elemento dobrado. Falta encaixar a cabeça, TAMBÉM dobrada, na frente dessa lista pronta - e "encaixar na frente de uma lista" é exatamente o que cons faz.
+
+```
+(define (dobrar l)
+  (if (null? l)
+      '()
+      (cons (* 2 (car l)) (dobrar (cdr l)))))
+```
+
+### CUIDADO - cons, NÃO list, NO CASO GERAL
+
+É comum escrever (list (\* 2 (car l)) (dobrar (cdr l))) por engano. Isso monta uma lista de DOIS elementos (o dobro da cabeça, e a lista da cauda inteira dentro dela) - errado. cons é quem encadeia um elemento na frente de uma lista já existente, mantendo tudo em uma lista só e "achatada".
+
+### EXERCÍCIOS
+
+- 24.1 Rode (dobrar '(6 7 1 -3 0)) e confira contra o exemplo acima.
+- 24.2 Teste por curiosidade a versão errada com list do CUIDADO acima e veja a diferença na estrutura do resultado.
+
+## TEMA 25 - A TABELA, AGORA COM O TIPO LISTA
+
+dobrar acabou de mostrar o caso mais importante da tabela do Tema 23: o caso em que o retorno é uma LISTA. O caso base típico é a lista vazia, e o operador do caso geral é cons.
+
+```
+Tipo de retorno   Valor típico do caso base   Operador do caso geral
+---------------   --------------------------  --------------------------
+número             0, 1, etc.                  +, add1, *, ...
+lista               '()                          cons
+```
+
+A lógica é a mesma dos dois temas anteriores: '() combinado por cons não acrescenta nem remove nada de errado - é o "elemento neutro" de cons, assim como 0 é o elemento neutro de +.
+
+### EXERCÍCIOS
+
+- 25.1 Escreva quadrados, que devolve uma lista com o quadrado de cada elemento (mesmo esqueleto de dobrar, trocando o operador aritmético).
+- 25.2 Confira: (quadrados '(1 2 3 4)) deve devolver '(1 4 9 16).
+
+## TEMA 26 - A FUNÇÃO remove-primeiro
+
+Parâmetros: v (valor a remover), l (lista). Retorna uma nova lista, igual a l mas sem a PRIMEIRA ocorrência de v (se v não estiver em l, a lista volta intacta).
+
+```
+(remove-primeiro 3 '(4 3 8 10 3 5))
+>>> '(4 8 10 3 5)
+(remove-primeiro 7 '(4 3 8))
+>>> '(4 3 8)
+(remove-primeiro 3 '())
+>>> '()
+```
+
+Caso base: não há nada para remover de uma lista vazia - '().
+
+Caso geral: aqui o "jeitão" do Tema 18 ganha uma torção interessante. Existem duas situações:
+
+- Se a CABEÇA é o valor procurado, ACHAMOS a ocorrência: o resultado é simplesmente a cauda, (cdr l), sem chamada recursiva nenhuma - a busca termina ali, e o resto da lista já está pronto do jeito que estava.
+- Se a cabeça NÃO é o valor procurado, ela fica no resultado, e quem remove o valor é a chamada recursiva sobre a cauda - com cons reencaixando a cabeça na frente.
+
+```
+(define (remove-primeiro v l)
+  (if (null? l)
+      '()
+      (if (equal? v (car l))
+          (cdr l)
+          (cons (car l) (remove-primeiro v (cdr l))))))
+```
+
+### CUIDADO - NEM TODO CASO GERAL PRECISA CHAMAR A RECURSÃO
+
+O esqueleto do Tema 18 diz que o caso geral costuma combinar (car l) com (&lt;função> (cdr l)). remove-primeiro mostra que isso é a regra, não uma lei física: assim que a ocorrência é encontrada, não há mais motivo para continuar procurando - devolver (cdr l) direto é o correto, e mais eficiente. Reconhecer esse tipo de "atalho legítimo" é parte de entender bem o problema, não um jeito errado de programar.
+
+### EXERCÍCIOS
+
+- 26.1 Rode os três exemplos do início do tema e confira.
+- 26.2 Escreva remove-todos, que remove TODAS as ocorrências de v (aqui, ao contrário de remove-primeiro, a recursão sobre a cauda acontece sempre, mesmo quando a cabeça é removida).
+
+## TEMA 27 - A IDEIA DE lambda
+
+Toda função em Racket, no fundo, é um VALOR - e esse valor é produzido pela special form lambda, uma função sem nome:
+
+```
+(lambda (<param1> <param2> ...) <corpo>)
+
+(lambda (x) (* x x))
+```
+
+define com a sintaxe curta que você já usa,
+
+```
+(define (quadrado x) (* x x))
+```
+
+é só um syntactic sugar para nomear o resultado de um lambda:
+
+```
+(define quadrado (lambda (x) (* x x)))
+```
+
+As duas formas produzem exatamente a mesma função - confirme:
+
+```
+(define f1 (lambda (x) (* x x)))
+(define (f2 x) (* x x))
+(equal? (f1 6) (f2 6))
+```
+
+Por que isso importa para recursão sobre listas? Porque, sendo um valor como qualquer outro, uma função pode ser passada como PARÂMETRO de outra função - sem precisar de nome nenhum. É essa possibilidade que o próximo tema explora.
+
+### EXERCÍCIOS
+
+- 27.1 Escreva, só com lambda (sem define de função), uma função que soma 10 a um número, e aplique-a a 5 direto: ((lambda (x) (+ x 10)) 5).
+- 27.2 Reescreva dobrar (Tema 24) usando um lambda dentro do cons, no lugar de (\* 2 (car l)) direto - o resultado deve continuar idêntico.
+
+## TEMA 28 - my-map, E O map QUE JÁ EXISTE NA LINGUAGEM
+
+Olhe de novo para dobrar (Tema 24) e quadrados (exercício 25.1): as duas têm o MESMO esqueleto, e a única diferença é QUAL operação se aplica à cabeça da lista. Isso pede uma generalização: em vez de fixar a operação, recebemos ela como parâmetro - um lambda, um valor-função, exatamente como no Tema 27.
+
+Parâmetros: f (uma função de um argumento), l (lista). Retorna uma nova lista, com f aplicada a cada elemento.
+
+```
+(my-map add1 '(4 3 8))
+>>> '(5 4 9)
+(my-map (lambda (x) (* x x)) '(1 2 3))
+>>> '(1 4 9)
+```
+
+Caso base: '() - o mesmo de sempre para retorno em lista.
+
+Caso geral: pelo pulo do gato, (my-map f (cdr l)) já é a lista da cauda com f aplicada a cada elemento. Falta aplicar f à cabeça e encaixar com cons - só que agora f não é uma operação fixa, é o parâmetro:
+
+```
+(define (my-map f l)
+  (if (null? l)
+      '()
+      (cons (f (car l)) (my-map f (cdr l)))))
+```
+
+Repare que dobrar é só um caso particular de my-map:
+
+```
+(my-map (lambda (x) (* 2 x)) '(6 7 1 -3 0))
+```
+
+devolve o mesmo que (dobrar '(6 7 1 -3 0)).
+
+### O map QUE JÁ EXISTE
+
+Racket já tem essa função pronta, chamada map - não é preciso reimplementá- la no dia a dia, o exercício aqui foi para entender COMO ela funciona por dentro:
+
+```
+(map add1 '(4 3 8))
+(map (lambda (x) (* x x)) '(1 2 3))
+```
+
+Os resultados são idênticos aos de my-map, porque é exatamente o mesmo algoritmo.
+
+### EXERCÍCIOS
+
+- 28.1 Confirme com equal? que (my-map add1 '(1 2 3)) e (map add1 '(1 2 3)) dão o mesmo resultado.
+- 28.2 Use map (o nativo) para transformar '("ana" "bia" "caio") numa lista dos comprimentos de cada string (procure a função string-length).
+- 28.3 my-map faz para QUALQUER f o que dobrar fazia só para "multiplicar por 2". Em uma frase, relacione essa ideia com a de existe? sendo uma generalização de pertence? (se você já viu esse par no material do curso).
+
+## FIM DA PARTE 1 DE RECURSÃO
