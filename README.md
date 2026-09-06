@@ -3,8 +3,8 @@ Conceitos de Linguagens de Programação
 
 ## Últimas mensagens
 - [05set] Avaliação P1: 
-   - Incluído simulado + gabarito e _cheat sheet_ (colinha) ; simulado pode ser atualizado
-   - Local: Bloco Didático GV, Sala 1 [a confirmar]
+   - Incluído simulado + gabarito e _cheat sheet_ (colinha) ; simulado ~~pode ser~~ já foi atualizado (versão anterior no commit anterior)
+   - Local: ~~Bloco Didático GV, Sala 1~~ Blocd Didático GIII, Sala 3 [a confirmar]
    - Dia e horário: 11set, 16h15min (int) e 21h15min (not)
    - Consulta à _cheat sheet_ (fornecida com a prova) + qualquer material impresso (caderno, etc.)
    - Tópicos:
