@@ -8,6 +8,7 @@
 # Material didatico: sempre LF, em qualquer sistema.
 aula1/** text eol=lf
 *.fs      text eol=lf
+*.sml     text eol=lf
 *.sh      text eol=lf
 
 # Arquivos de projeto do Windows mantem CRLF.

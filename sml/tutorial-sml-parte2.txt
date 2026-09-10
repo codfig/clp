@@ -1,0 +1,1192 @@
+===============================================================================
+ STANDARD ML - PARTE 2: LISTAS, POLIMORFISMO E INFERÊNCIA
+===============================================================================
+
+ Pré-requisito: tutorial-sml-parte1.md (Temas 42 a 55), e os tutoriais de
+ recursão em Racket (Temas 16 a 41), que são reescritos aqui.
+ Bibliotecas...: exemplos-parte2.sml (Temas 56 a 59) e
+ exemplos-parte2-poli.sml (Temas 60 a 67)
+
+ Na parte 1, SML apareceu como uma linguagem parecida com Racket, só que com
+ tipos. Nesta parte ela mostra o que tem de próprio: listas construídas do
+ zero como tipo algébrico, funções que valem para lista de QUALQUER coisa, e
+ um compilador que descobre os tipos sozinho.
+
+ O caminho é este: primeiro construímos a lista com as nossas próprias mãos,
+ no dialeto de sempre - Kons, Nihil -, e refazemos nela as funções que você
+ já escreveu em Racket. Depois generalizamos o TIPO (polimorfismo), depois
+ descobrimos que a lista nativa de SML é exatamente a mesma coisa com açúcar
+ sintático por cima, e só então a regra da casa cai e a inferência de tipos
+ vira o assunto.
+
+ CUIDADO - UM ARQUIVO DE EXEMPLOS POR REPL
+ -----------------------------------------
+
+ exemplos-parte2.sml e exemplos-parte2-poli.sml declaram, os dois, um tipo
+ chamado Lizt. Se você carregar os dois no mesmo REPL, o segundo ESCONDE o
+ primeiro, e os valores antigos passam a ser impressos com o tipo ?.Lizt - o
+ REPL avisando "este é um Lizt que não existe mais". Nada quebra, mas
+ confunde. Carregue um de cada vez; para trocar, saia com Ctrl+D e entre de
+ novo.
+
+===============================================================================
+ TEMA 56 - A LISTA, CONSTRUÍDA POR NÓS
+===============================================================================
+
+ Em Racket, a lista já vinha pronta: '(), cons, car, cdr. Aqui vamos
+ CONSTRUIR a lista, e o material para isso é o datatype do Tema 53.
+
+ Volte ao Tema 17 e leia de novo a definição de lista:
+
+
+     uma lista é ou a lista vazia, ou uma célula cujo primeiro elemento
+     é um valor e cujo resto é OUTRA LISTA, menor.
+
+ Isso é uma frase com um "ou" e um "e". Um "ou" é um tipo soma. Um "e" é um
+ tipo produto. Traduzindo literalmente:
+
+     datatype Lizt = Nihil | Kons of int * Lizt;
+
+ Em português: um Lizt é OU Nihil (a lista vazia) OU Kons de um par (um int
+ E um Lizt).
+
+ Os nomes são de propósito: Nihil é '(), Kons é cons. Escritos com K e sem o
+ "il" para não confundir com nada que já exista.
+
+ Repare no que acabou de acontecer: o datatype é RECURSIVO - Lizt aparece
+ dentro da própria definição de Lizt. É a primeira vez no curso que um TIPO,
+ e não uma função, é definido em termos de si mesmo. E é exatamente essa
+ recursão no tipo que vai justificar a recursão em todas as funções que vêm
+ a seguir.
+
+ Construindo algumas listas:
+
+     val vazia : Lizt = Nihil;
+     val umItem : Lizt = Kons (7, Nihil);
+     val l1 : Lizt = Kons (4, Kons (6, Kons (0, Kons (2, Nihil))));
+     val l2 : Lizt = Kons (10, Kons (20, Nihil));
+
+     val vazia = Nihil : Lizt
+     val umItem = Kons (7,Nihil) : Lizt
+     val l1 = Kons (4,Kons (6,Kons (0,Kons (2,Nihil)))) : Lizt
+     val l2 = Kons (10,Kons (20,Nihil)) : Lizt
+
+ Compare com a linha do Tema 17, em Racket:
+
+     '(4 0 -2 3)  =  (cons 4 (cons 0 (cons -2 (cons 3 '()))))
+
+ É a mesma estrutura, letra por letra. A diferença é que em Racket ela era
+ um presente da linguagem, e aqui ela é uma declaração de três linhas que
+ você escreveu.
+
+ CUIDADO - KONS (4, 6) NÃO COMPILA
+ ---------------------------------
+
+ O segundo componente de Kons é um Lizt, não um int:
+
+     Kons (4, 6);
+
+     stdIn:1.46-1.57 Error: operator and operand do not agree
+       operator domain: int * Lizt
+       operand:         int * 'Z[INT]
+       in expression:
+         Kons (4,6)
+
+ Em Racket, (cons 4 6) funcionava sem reclamar e produzia um par impróprio
+ '(4 . 6), que depois quebrava alguma função lá adiante, longe da causa.
+ Aqui a estrutura errada nem chega a existir.
+
+ EXERCÍCIOS
+ ----------
+
+ 56.1 Escreva '(9 8 7 6) como um Lizt.
+ 56.2 Quantos Kons tem a lista Kons (1, Kons (2, Nihil))? E quantos Nihil?
+ 56.3 Declare val estranha : Lizt = Kons (1, Kons (2, Nihil)) e depois Kons
+      (0, estranha). O que você obteve?
+ 56.4 Em uma frase, explique por que o datatype Lizt precisa mencionar Lizt.
+ 56.5 Tente construir uma lista de strings com esse Lizt. Leia a mensagem de
+      erro e guarde-a: o Tema 60 resolve esse problema.
+
+===============================================================================
+ TEMA 57 - RECURSÃO SOBRE LIZT: O ESQUELETO DE NOVO
+===============================================================================
+
+ O esqueleto do Tema 18 continua valendo, palavra por palavra - só que agora
+ o teste "a lista está vazia?" não é uma chamada a null?, é um PADRÃO:
+
+     fun <função> (Nihil : Lizt) : <tipo> =
+           (.. caso base ..)
+       | <função> (Kons (cabeca, cauda) : Lizt) : <tipo> =
+           (.. combina cabeca com  <função> cauda ..)
+
+ As duas cláusulas são os dois construtores do datatype, na ordem. É por
+ isso que a estrutura da função copia a estrutura do tipo: um caso por
+ construtor.
+
+ Primeiro exemplo, o somar do Tema 20:
+
+     fun somar (Nihil : Lizt) : int = 0
+       | somar (Kons (cabeca, cauda) : Lizt) : int = cabeca + somar cauda;
+
+     somar l1;
+     somar Nihil;
+
+     val it = 12 : int
+     val it = 0 : int
+
+ Ponha lado a lado com a versão em Racket:
+
+     Racket:                        SML:
+     (define (somar l)              fun somar (Nihil : Lizt) : int = 0
+       (if (null? l)                  | somar (Kons (cab, cau)
+           0                              : Lizt) : int =
+           (+ (car l)                     cab + somar cau;
+              (somar (cdr l)))))
+
+ O null?, o car e o cdr desapareceram - todos os três. Eles foram absorvidos
+ pelo padrão Kons (cabeca, cauda), que ao mesmo tempo testa se a lista não é
+ vazia, extrai a cabeça e extrai a cauda. É a mesma economia do Tema 54.
+
+ Mais dois, direto:
+
+     fun comprimento (Nihil : Lizt) : int = 0
+       | comprimento (Kons (_, cauda) : Lizt) : int = 1 + comprimento cauda;
+
+ O _ no lugar da cabeça diz, para quem lê, que o VALOR do elemento não
+ importa aqui - só o fato de existir.
+
+ E um com dois casos base, na linha do Tema 39:
+
+     fun maiorDe (Kons (cabeca, Nihil) : Lizt) : int = cabeca
+       | maiorDe (Kons (cabeca, cauda) : Lizt) : int =
+             Int.max (cabeca, maiorDe cauda)
+       | maiorDe (Nihil : Lizt) : int = raise Empty;
+
+ Repare em Kons (cabeca, Nihil): um padrão pode ser ANINHADO, e esse aqui
+ casa apenas com listas de exatamente um elemento. E repare também que a
+ lista vazia não tem maior elemento nenhum - não há resposta correta a
+ devolver, então a função levanta uma exceção. Se você omitisse essa
+ terceira cláusula, o compilador cobraria com Warning: match nonexhaustive.
+
+ CUIDADO - A ORDEM DAS CLÁUSULAS DECIDE QUEM CASA
+ ------------------------------------------------
+
+ Em maiorDe, se você trocasse as duas primeiras cláusulas de lugar, Kons
+ (cabeca, cauda) casaria com TUDO que não é vazio, inclusive com a lista de
+ um elemento - e a primeira cláusula nunca seria alcançada. O compilador
+ avisaria com Error: match redundant (Tema 51). Padrões mais específicos vêm
+ primeiro.
+
+ EXERCÍCIOS
+ ----------
+
+ 57.1 Escreva produto : Lizt -> int (cuidado com o caso base: qual é o
+      elemento neutro da multiplicação?).
+ 57.2 Escreva contarPares : Lizt -> int.
+ 57.3 Escreva menorDe : Lizt -> int, no molde de maiorDe.
+ 57.4 Escreva somarPositivos : Lizt -> int, que ignora os negativos.
+ 57.5 Escreva media : Lizt -> real. Dica: você já tem somar e comprimento, e
+      vai precisar de real para converter.
+ 57.6 Escreva somar de novo, mas agora com case em vez de duas cláusulas.
+      Qual das duas versões você acha mais legível?
+
+===============================================================================
+ TEMA 58 - QUANDO A RESPOSTA É OUTRA LIZT
+===============================================================================
+
+ Mesmo esqueleto, mas agora o tipo de retorno é Lizt, e o caso base é Nihil
+ em vez de 0. O operador que combina não é mais +: é Kons.
+
+ Essa é a linha 2 da tabela do Tema 41, traduzida:
+
+     Tipo de retorno   Caso base   Operador do caso geral
+     ---------------   ---------   ----------------------
+     int               0, 1        +, *, Int.max
+     Lizt              Nihil       Kons
+     bool              false, true orelse, andalso
+
+ dobrar, do Tema 24:
+
+     fun dobrar (Nihil : Lizt) : Lizt = Nihil
+       | dobrar (Kons (cabeca, cauda) : Lizt) : Lizt =
+             Kons (2 * cabeca, dobrar cauda);
+
+     dobrar l1;
+
+     val it = Kons (8,Kons (12,Kons (0,Kons (4,Nihil)))) : Lizt
+
+ juntar, o my-append do Tema 37 - aquele em que o caso base NÃO é a lista
+ vazia:
+
+     fun juntar (Nihil : Lizt, outra : Lizt) : Lizt = outra
+       | juntar (Kons (cabeca, cauda) : Lizt, outra : Lizt) : Lizt =
+             Kons (cabeca, juntar (cauda, outra));
+
+     juntar (l2, umItem);
+
+     val it = Kons (10,Kons (20,Kons (7,Nihil))) : Lizt
+
+ soPares, o my-filter de um caso só, do Tema 34:
+
+     fun soPares (Nihil : Lizt) : Lizt = Nihil
+       | soPares (Kons (cabeca, cauda) : Lizt) : Lizt =
+             if cabeca mod 2 = 0 then Kons (cabeca, soPares cauda)
+             else soPares cauda;
+
+ Repare no ramo do else: ele NÃO tem Kons. Não pôr a cabeça no resultado é
+ exatamente o que significa filtrar.
+
+ CUIDADO - O TIPO DE RETORNO ANOTADO PEGA O ERRO NA HORA
+ -------------------------------------------------------
+
+ Suponha que você escreva, por engano, Kons (2 * cabeca, cauda) - esquecendo
+ a chamada recursiva. Em Racket, isso rodaria e devolveria uma lista com o
+ primeiro elemento dobrado e o resto intacto, e você descobriria olhando a
+ saída. Aqui, o tipo ainda bate (cauda é um Lizt!), e o compilador também
+ aceita.
+
+ A lição, honesta: o sistema de tipos pega erros de TIPO, não erros de
+ LÓGICA. Lizt -> Lizt não sabe a diferença entre dobrar tudo e dobrar só o
+ primeiro. Continue testando no REPL.
+
+ EXERCÍCIOS
+ ----------
+
+ 58.1 Escreva quadrados : Lizt -> Lizt.
+ 58.2 Escreva soImpares : Lizt -> Lizt.
+ 58.3 Escreva gaguinho : Lizt -> Lizt (Tema 36): cada elemento aparece duas
+      vezes.
+ 58.4 Escreva inverter : Lizt -> Lizt. Dica: juntar ajuda.
+ 58.5 Escreva removeTodos : int * Lizt -> Lizt (Tema 34).
+ 58.6 Escreva enumerar : int -> Lizt, que devolve Kons (1, Kons (2, ... Kons
+      (n, Nihil))). Repare que aqui a recursão é sobre um NÚMERO, e a lista
+      é o resultado.
+
+===============================================================================
+ TEMA 59 - RETORNO BOOLEANO
+===============================================================================
+
+ Terceira linha da tabela. Caso base false ou true, operador orelse ou
+ andalso.
+
+ pertence, do Tema 29:
+
+     fun pertence (_ : int, Nihil : Lizt) : bool = false
+       | pertence (alvo : int, Kons (cabeca, cauda) : Lizt) : bool =
+             alvo = cabeca orelse pertence (alvo, cauda);
+
+ todosPositivos, no molde do todos? do Tema 33:
+
+     fun todosPositivos (Nihil : Lizt) : bool = true
+       | todosPositivos (Kons (cabeca, cauda) : Lizt) : bool =
+             cabeca > 0 andalso todosPositivos cauda;
+
+     pertence (6, l1);
+     pertence (9, l1);
+     todosPositivos l2;
+     todosPositivos l1;
+
+     val it = true : bool
+     val it = false : bool
+     val it = true : bool
+     val it = false : bool
+
+ Os dois casos base são opostos, e pela mesma razão do Tema 33: "existe
+ algum elemento que..." é falso numa lista sem elementos; "todos os
+ elementos são..." é vacuamente verdadeiro numa lista sem elementos.
+
+ CUIDADO - ORELSE/ANDALSO NÃO SÃO FUNÇÕES, E É POR ISSO QUE FUNCIONAM
+ --------------------------------------------------------------------
+
+ andalso e orelse são palavras reservadas, não operadores comuns, e têm
+ avaliação em CURTO-CIRCUITO: em a orelse b, se a já for true, b nunca é
+ avaliado.
+
+ Isso não é detalhe de eficiência - é o que faz pertence parar assim que
+ acha o elemento, em vez de percorrer a lista inteira. Se orelse fosse uma
+ função comum, SML avaliaria os dois argumentos antes de chamá-la, e a
+ recursão iria até o fim sempre.
+
+ EXERCÍCIOS
+ ----------
+
+ 59.1 Escreva temNegativo : Lizt -> bool.
+ 59.2 Escreva ehVazia : Lizt -> bool, sem recursão nenhuma.
+ 59.3 Escreva estaOrdenada : Lizt -> bool. Dica: dois casos base, como em
+      maiorDe.
+ 59.4 Escreva todosIguais : Lizt -> bool.
+ 59.5 Explique, em uma frase, por que o caso base de todosPositivos é true e
+      não false.
+
+===============================================================================
+ TEMA 60 - O PROBLEMA: E UMA LISTA DE STRINGS?
+===============================================================================
+
+ Você tem comprimento : Lizt -> int, que conta os elementos de uma lista.
+ Agora precisa contar os elementos de uma lista de STRINGS. O que fazer?
+
+ Com o Lizt do Tema 56, a resposta é deprimente: declarar tudo de novo.
+
+     datatype LiztStr = NihilStr | KonsStr of string * LiztStr;
+
+     fun comprimentoStr (NihilStr : LiztStr) : int = 0
+       | comprimentoStr (KonsStr (_, cauda) : LiztStr) : int =
+             1 + comprimentoStr cauda;
+
+ E de novo para bool. E de novo para real. E de novo para cada tipo que
+ aparecer - e comprimento nem OLHA para os elementos, ele só conta. O código
+ é o mesmo, caractere por caractere, mudando só o nome do tipo.
+
+ Em Racket esse problema não existia: (length '("a" "b")) funciona porque em
+ Racket uma lista é uma lista, e ninguém pergunta o que tem dentro. É a
+ vantagem óbvia do dinamicamente tipado - e é exatamente a vantagem que ML
+ precisava recuperar sem abrir mão dos tipos.
+
+ A SOLUÇÃO: PARAMETRIZAR O TIPO
+ ------------------------------
+
+ A resposta de Milner, em 1978, foi deixar o tipo ter um PARÂMETRO:
+
+     datatype 'a Lizt = Nihil | Kons of 'a * 'a Lizt;
+
+ Leia 'a como "um tipo qualquer, mas sempre o mesmo dentro desta lista".
+ Escreve-se com apóstrofo na frente e se pronuncia "alfa" (ou "tick a"). É
+ uma VARIÁVEL DE TIPO: assim como n é um nome que espera um número, 'a é um
+ nome que espera um tipo.
+
+ Lizt deixou de ser um tipo e virou um CONSTRUTOR DE TIPOS: sozinho não é
+ nada, mas int Lizt, string Lizt e bool Lizt são tipos concretos.
+
+     val numeros : int Lizt = Kons (4, Kons (6, Kons (0, Kons (2, Nihil))));
+     val palavras : string Lizt = Kons ("olá", Kons ("mundo", Nihil));
+     val flags : bool Lizt = Kons (true, Kons (false, Nihil));
+     val listaDeListas : (int Lizt) Lizt = Kons (numeros, Kons (Nihil, Nihil));
+
+ Note a ordem: int Lizt, e não Lizt int nem Lizt<int>. O parâmetro vem
+ ANTES, como em int list (Tema 62). E note a última linha: uma lista de
+ listas de inteiros. O parâmetro pode ser qualquer tipo, inclusive outro
+ Lizt.
+
+ E agora uma definição só serve para todas:
+
+     fun comprimento (Nihil : 'a Lizt) : int = 0
+       | comprimento (Kons (_, cauda) : 'a Lizt) : int = 1 + comprimento cauda;
+
+     comprimento numeros;
+     comprimento palavras;
+     comprimento listaDeListas;
+
+     val it = 4 : int
+     val it = 2 : int
+     val it = 2 : int
+
+ Isso se chama polimorfismo paramétrico, e é o nome técnico do que outras
+ linguagens chamam de "generics" ou "programação genérica". List<T> em Java
+ e C#, Vec<T> em Rust, [T] em Swift - todos são a mesma ideia, e todos
+ descendem daqui.
+
+ O adjetivo "paramétrico" é importante e quer dizer uma coisa forte: a
+ função é OBRIGADA a se comportar igual, seja qual for o tipo. comprimento
+ não pode olhar dentro dos elementos, não pode decidir "se for string, faça
+ outra coisa" - porque 'a não lhe dá nenhuma operação. Essa restrição, que
+ parece uma limitação, é uma garantia: pelo tipo 'a Lizt -> int você já
+ sabe, sem ler o corpo, que a função só pode contar posições.
+
+ juntar também generaliza, sem mudar uma vírgula do corpo:
+
+     fun juntar (Nihil : 'a Lizt, outra : 'a Lizt) : 'a Lizt = outra
+       | juntar (Kons (cabeca, cauda) : 'a Lizt, outra : 'a Lizt) : 'a Lizt =
+             Kons (cabeca, juntar (cauda, outra));
+
+     val juntar = fn : 'a Lizt * 'a Lizt -> 'a Lizt
+
+ O tipo diz mais do que parece: as duas listas de entrada e a de saída têm o
+ MESMO 'a. Ou seja, o compilador garante que você não vai juntar uma lista
+ de inteiros com uma de strings. Escrever 'a duas vezes é escrever uma
+ regra.
+
+ CUIDADO - IGUALDADE PEDE DUAS ASPAS: ''A
+ ----------------------------------------
+
+ Tente generalizar pertence como fizemos com comprimento, usando 'a. Não vai
+ passar. O motivo é que pertence usa = para comparar, e nem todo tipo em SML
+ pode ser comparado com = (funções, por exemplo, não podem - decidir se duas
+ funções são iguais é um problema indecidível).
+
+ Existe uma variável de tipo especial para isso, com DUAS aspas:
+
+     fun pertence (_ : ''a, Nihil : ''a Lizt) : bool = false
+       | pertence (alvo : ''a, Kons (cabeca, cauda) : ''a Lizt) : bool =
+             alvo = cabeca orelse pertence (alvo, cauda);
+
+     val pertence = fn : ''a * ''a Lizt -> bool
+
+ ''a significa "um tipo qualquer QUE ADMITA IGUALDADE" - int, string, char,
+ bool, datatypes cujos campos admitam igualdade. Funciona com o que
+ interessa:
+
+     pertence (6, numeros);
+     pertence ("mundo", palavras);
+
+     val it = true : bool
+     val it = true : bool
+
+ E se você tentar comparar funções, o erro é explícito:
+
+     fun id x = x;
+     id = id;
+
+     stdIn:...  Error: operator and operand do not agree
+                  [equality type required]
+       operator domain: ''Z * ''Z
+       operand:         ('Y -> 'Y) * ('X -> 'X)
+
+ equality type required: mais uma coisa que o Racket descobriria (ou não) só
+ na hora de rodar.
+
+ CUIDADO - WARNING: CALLING POLYEQUAL
+ ------------------------------------
+
+ Ao carregar pertence, o SML/NJ imprime Warning: calling polyEqual. Não é
+ erro nem problema de correção: é o compilador avisando que, como o tipo não
+ é conhecido, a comparação será feita por uma rotina genérica, mais lenta
+ que a comparação direta de inteiros. Pode ignorar.
+
+ EXERCÍCIOS
+ ----------
+
+ 60.1 Generalize dobrar para 'a Lizt. Você consegue? Explique o que dá
+      errado e por quê.
+ 60.2 Generalize inverter (58.4). Essa funciona - por que essa sim e dobrar
+      não?
+ 60.3 Escreva primeiro : 'a Lizt -> 'a, que devolve a cabeça (e levanta
+      Empty na lista vazia).
+ 60.4 Escreva ultimo : 'a Lizt -> 'a.
+ 60.5 Qual é o tipo de fn x => Kons (x, Nihil)? Escreva sua resposta antes
+      de perguntar ao REPL.
+ 60.6 O tipo de juntar é 'a Lizt * 'a Lizt -> 'a Lizt. Escreva uma chamada
+      que o compilador vai REJEITAR por causa dos dois 'a, e leia a
+      mensagem.
+
+===============================================================================
+ TEMA 61 - ORDEM SUPERIOR, AGORA POLIMÓRFICA
+===============================================================================
+
+ O my-map do Tema 27 recebia uma função como parâmetro. Agora essa ideia se
+ encontra com o polimorfismo, e o resultado é o tipo mais expressivo que
+ você vai ver neste curso:
+
+     fun mapL (f : 'a -> 'b) (Nihil : 'a Lizt) : 'b Lizt = Nihil
+       | mapL (f : 'a -> 'b) (Kons (cabeca, cauda) : 'a Lizt) : 'b Lizt =
+             Kons (f cabeca, mapL f cauda);
+
+     val mapL = fn : ('a -> 'b) -> 'a Lizt -> 'b Lizt
+
+ Leia esse tipo devagar, porque ele conta a história inteira da função:
+
+     ('a -> 'b)  ->  'a Lizt  ->  'b Lizt
+      |               |            |
+      |               |            +-- devolve uma lista de 'b
+      |               +-- recebe uma lista de 'a
+      +-- recebe uma função que transforma 'a em 'b
+
+ São DOIS parâmetros de tipo, e são diferentes de propósito: mapL pode mudar
+ o tipo dos elementos.
+
+     mapL (fn (x : int) => 2 * x) numeros;
+     mapL (fn (x : int) => Int.toString x) numeros;
+
+     val it = Kons (8,Kons (12,Kons (0,Kons (4,Nihil)))) : int Lizt
+     val it = Kons ("4",Kons ("6",Kons ("0",Kons ("2",Nihil)))) : string Lizt
+
+ A segunda chamada entrou com int Lizt e saiu com string Lizt, e o
+ compilador acompanhou a mudança.
+
+ fn <padrão> => <expressão> é o lambda do Tema 27, com outra grafia. Mesma
+ coisa: uma função sem nome.
+
+ E o my-filter do Tema 35, cujo tipo tem um só 'a - porque filtrar não
+ transforma nada:
+
+     fun filtrarL (p : 'a -> bool) (Nihil : 'a Lizt) : 'a Lizt = Nihil
+       | filtrarL (p : 'a -> bool) (Kons (cabeca, cauda) : 'a Lizt) : 'a Lizt =
+             if p cabeca then Kons (cabeca, filtrarL p cauda)
+             else filtrarL p cauda;
+
+     filtrarL (fn (x : int) => x > 2) numeros;
+
+     val it = Kons (4,Kons (6,Nihil)) : int Lizt
+
+ CURRYING: POR QUE MAPL F L E NÃO MAPL (F, L)
+ --------------------------------------------
+
+ Você deve ter notado que mapL foi escrita com os parâmetros SEPARADOS POR
+ ESPAÇO, e não como uma tupla. Isso não é decoração. Compare os dois tipos:
+
+     ('a -> 'b) * 'a Lizt -> 'b Lizt      uma função de um PAR
+     ('a -> 'b) -> 'a Lizt -> 'b Lizt     uma função que devolve outra função
+
+ A segunda forma se chama CURRYING (em homenagem a Haskell Curry) e
+ significa: mapL recebe a função f e devolve uma NOVA FUNÇÃO, que por sua
+ vez espera a lista. As setas associam à direita: ('a -> 'b) -> ('a Lizt ->
+ 'b Lizt).
+
+ A vantagem é a APLICAÇÃO PARCIAL - dar só os primeiros argumentos e guardar
+ o resto para depois:
+
+     fun soma x y = x + y;
+     val soma3 = soma 3;
+     soma3 10;
+
+     val soma = fn : int -> int -> int
+     val soma3 = fn : int -> int
+     val it = 13 : int
+
+ soma 3 não é um erro nem um resultado pela metade: é uma função nova,
+ perfeitamente utilizável, que soma 3 ao que receber. Do mesmo jeito, mapL
+ (fn x => 2 * x) é uma função "dobre todos os elementos", que você pode
+ nomear e reutilizar.
+
+ Em Racket, para conseguir isso, era preciso escrever um lambda que devolve
+ outro lambda, na mão. Em SML basta separar os parâmetros por espaço em vez
+ de vírgula.
+
+ CUIDADO - MAPL F CAUDA PRECISA DOS DOIS; MAPL (F, CAUDA) NÃO COMPILA
+ --------------------------------------------------------------------
+
+ Escolhida a forma currificada, ela vale em todo lugar, inclusive na chamada
+ recursiva. mapL (f, cauda) passa um PAR onde se espera uma função, e o erro
+ é operator and operand do not agree.
+
+ EXERCÍCIOS
+ ----------
+
+ 61.1 Reescreva dobrar (58.1) usando mapL.
+ 61.2 Reescreva soPares usando filtrarL.
+ 61.3 Escreva existeL : ('a -> bool) -> 'a Lizt -> bool (o existe? do Tema
+      32) e todosL, do Tema 33.
+ 61.4 Defina val triplicar = mapL (fn (x : int) => 3 * x) e use. Qual é o
+      tipo de triplicar?
+ 61.5 Escreva mapL na versão NÃO currificada, com tupla, e compare os dois
+      tipos.
+ 61.6 Qual é o tipo de fn f => fn x => f (f x)? Responda antes de perguntar
+      ao REPL.
+
+===============================================================================
+ TEMA 62 - A LISTA NATIVA É O MESMO DATATYPE, COM AÇÚCAR
+===============================================================================
+
+ SML já vem com listas prontas. E o segredo é que elas são, literalmente, o
+ Lizt que você acabou de escrever - com outros nomes e uma notação mais
+ curta:
+
+     o seu                          o nativo
+     ---------------------------    ----------------------------
+     datatype 'a Lizt               'a list
+     Nihil                          []       (também escrito nil)
+     Kons                           ::       (pronuncia-se "cons")
+     Kons (x, resto)                x :: resto
+     'a Lizt                        'a list
+
+ A única diferença real é que :: é INFIXO: escreve-se entre os operandos, e
+ não antes. Confira o tipo:
+
+     op ::;
+
+     val it = fn : 'a * 'a list -> 'a list
+
+ Compare com o tipo de Kons, que é 'a * 'a Lizt -> 'a Lizt. É a mesma
+ função. (O op na frente serve justamente para falar de um operador infixo
+ como se fosse um nome comum.)
+
+ E o açúcar sintático de verdade é a notação de colchetes:
+
+     val nativa : int list = 4 :: 6 :: 0 :: 2 :: [];
+     val mesmaCoisa : int list = [4, 6, 0, 2];
+
+     nativa = mesmaCoisa;
+
+     val it = true : bool
+
+ [4, 6, 0, 2] não é um tipo novo nem uma estrutura diferente: é apenas uma
+ abreviação para 4 :: (6 :: (0 :: (2 :: []))). :: associa à direita, o que é
+ a única associação que faz sentido - o segundo operando tem que ser uma
+ lista.
+
+ Você pode ver o açúcar sendo desfeito nas mensagens de erro. Escreva uma
+ lista heterogênea:
+
+     [1, "a"];
+
+     stdIn:1.2-1.10 Error: operator and operand do not agree [overload - bad
+       instantiation]
+       operator domain: 'Z[INT] * 'Z[INT] list
+       operand:         'Z[INT] * string list
+       in expression:
+         1 :: "a" :: nil
+
+ Olhe a última linha: o compilador reescreveu [1, "a"] como 1 :: "a" :: nil
+ para reclamar. O açúcar já tinha sido dissolvido antes da checagem de
+ tipos.
+
+ Exatamente a mesma coisa que aconteceu no Tema 7, quando você descobriu que
+ '(1 2 3) em Racket era açúcar para (cons 1 (cons 2 (cons 3 '()))). A
+ diferença é que agora você escreveu o datatype que está por baixo.
+
+ TRADUZINDO DE UM PARA O OUTRO
+ -----------------------------
+
+ Como são a mesma estrutura, a conversão é uma recursão de duas linhas:
+
+     fun paraNativa (Nihil : 'a Lizt) : 'a list = []
+       | paraNativa (Kons (cabeca, cauda) : 'a Lizt) : 'a list =
+             cabeca :: paraNativa cauda;
+
+     fun deNativa ([] : 'a list) : 'a Lizt = Nihil
+       | deNativa (cabeca :: cauda : 'a list) : 'a Lizt =
+             Kons (cabeca, deNativa cauda);
+
+     paraNativa numeros;
+     deNativa [1, 2, 3];
+
+     val it = [4,6,0,2] : int list
+     val it = Kons (1,Kons (2,Kons (3,Nihil))) : int Lizt
+
+ Repare no padrão cabeca :: cauda: :: funciona como padrão, não só como
+ construtor. Isso vale para qualquer construtor de datatype, e é o que
+ permite desmontar a lista nativa do mesmo jeito que desmontávamos o Lizt.
+
+ CUIDADO - :: ACRESCENTA UM ELEMENTO; @ JUNTA DUAS LISTAS
+ --------------------------------------------------------
+
+ Os dois erros mais comuns com listas nativas, e são simétricos:
+
+     1 :: [2, 3];            (* [1,2,3]     - int :: int list     *)
+     [1] @ [2, 3];           (* [1,2,3]     - int list @ int list *)
+     [1] :: [2, 3];          (* ERRO                              *)
+     1 @ [2, 3];             (* ERRO                              *)
+
+ :: é Kons: cabeça de um lado, lista do outro. @ é o juntar do Tema 58, já
+ pronto na biblioteca: lista dos dois lados. Quando errar, leia o operator
+ domain da mensagem e compare com o que você passou.
+
+ EXERCÍCIOS
+ ----------
+
+ 62.1 Escreva [1,2,3] inteiramente com :: e [].
+ 62.2 Qual é a diferença entre [], [[]] e [[],[]]? Descubra o tipo de cada
+      um.
+ 62.3 Sem rodar, diga quais destas compilam: [1,2] :: [3], [[1,2],[3]], 1 ::
+      2 :: [], [1] @ 2.
+ 62.4 Descubra o tipo de [] sozinho. Explique a resposta.
+ 62.5 Escreva paraNativa e deNativa e confira que deNativa (paraNativa
+      numeros) devolve numeros.
+
+===============================================================================
+ TEMA 63 - AS MESMAS FUNÇÕES, COM A LISTA NATIVA
+===============================================================================
+
+ Nada de novo aqui, e é esse o ponto: você já sabe tudo, muda só a grafia
+ dos padrões.
+
+     fun somaN ([] : int list) : int = 0
+       | somaN (cabeca :: cauda : int list) : int = cabeca + somaN cauda;
+
+     fun mapN (f : 'a -> 'b) ([] : 'a list) : 'b list = []
+       | mapN (f : 'a -> 'b) (cabeca :: cauda : 'a list) : 'b list =
+             f cabeca :: mapN f cauda;
+
+     fun filtrarN (p : 'a -> bool) ([] : 'a list) : 'a list = []
+       | filtrarN (p : 'a -> bool) (cabeca :: cauda : 'a list) : 'a list =
+             if p cabeca then cabeca :: filtrarN p cauda else filtrarN p cauda;
+
+     somaN [4, 6, 0, 2];
+     mapN (fn (x : int) => x * x) [1, 2, 3];
+     filtrarN (fn (x : int) => x > 2) [1, 2, 3, 4];
+
+     val it = 12 : int
+     val it = [1,4,9] : int list
+     val it = [3,4] : int list
+
+ O QUE JÁ EXISTE NA BIBLIOTECA
+ -----------------------------
+
+ Do mesmo jeito que Racket já tinha map, filter, ormap e andmap, SML já tem
+ tudo isto:
+
+     length [1,2,3];                       (* 3             *)
+     rev [1,2,3];                          (* [3,2,1]       *)
+     [1,2] @ [3,4];                        (* [1,2,3,4]     *)
+     hd [1,2,3];                           (* 1   - o car   *)
+     tl [1,2,3];                           (* [2,3] - o cdr *)
+     null [];                              (* true          *)
+     List.map (fn x => x * 2) [1,2,3];     (* [2,4,6]       *)
+     List.filter (fn x => x > 1) [1,2,3];  (* [2,3]         *)
+     List.nth ([1,2,3], 1);                (* 2             *)
+     foldr (op +) 0 [1,2,3];               (* 6             *)
+     foldl (op ::) [] [1,2,3];             (* [3,2,1]       *)
+
+ foldr e foldl são a generalização final: elas recebem o operador do caso
+ geral E o valor do caso base, que é justamente o que a tabela do Tema 41
+ dizia que muda de uma função para outra. foldr (op +) 0 é o somar; foldr
+ (op ::) [] é a identidade; foldl (op ::) [] é o rev. Vale explorar.
+
+ CUIDADO - HD [] E TL [] LEVANTAM EXCEÇÃO
+ ----------------------------------------
+
+     hd ([] : int list);
+
+     uncaught exception Empty
+       raised at: smlnj/init/pervasive.sml:193.19-193.24
+
+ O sistema de tipos NÃO protege contra isso: hd : 'a list -> 'a é um tipo
+ perfeitamente válido, e o compilador não tem como saber se a lista estará
+ vazia quando o programa rodar. É a mesma classe de erro do (car '()) em
+ Racket.
+
+ Este é o limite honesto dos tipos estáticos, e é bom vê-lo agora, logo
+ depois de tantas vantagens: eles impedem que você some um inteiro com uma
+ string, mas não impedem que você peça a cabeça de uma lista vazia. Por isso
+ é que se prefere pattern matching a hd/tl - com [] => ... e x :: resto =>
+ ... o compilador COBRA o caso vazio, com o aviso match nonexhaustive.
+
+ EXERCÍCIOS
+ ----------
+
+ 63.1 Refaça 58.1 a 58.6 com listas nativas.
+ 63.2 Escreva pertenceN : ''a * ''a list -> bool.
+ 63.3 Escreva zip : 'a list * 'b list -> ('a * 'b) list (o zíper do Tema
+      38). Repare que agora os dois tipos podem ser diferentes.
+ 63.4 Escreva achatar : 'a list list -> 'a list (exercício 41.2). Dica: @.
+ 63.5 Escreva somaN usando foldr, sem recursão explícita.
+ 63.6 Descubra o tipo de foldr e tente explicar cada uma das três setas.
+ 63.7 Escreva ordenar : ''a list -> ''a list por inserção (exercício 41.3).
+      Depois descubra por que List.sort não existe com esse nome em SML e o
+      que existe no lugar.
+
+===============================================================================
+ TEMA 64 - INFERÊNCIA DE TIPOS: A REGRA DA CASA CAI
+===============================================================================
+
+ Até aqui você anotou tudo. Agora pare de anotar e veja o que acontece:
+
+     fun tamanho [] = 0
+       | tamanho (_ :: cauda) = 1 + tamanho cauda;
+
+     val tamanho = fn : 'a list -> int
+
+ Ninguém escreveu 'a list. Ninguém escreveu int. O compilador DEDUZIU os
+ dois, e não a partir de exemplos ou de chutes: a partir de um raciocínio
+ que ele pode justificar linha por linha.
+
+     fun trocar (a, b) = (b, a);
+     fun aplicarDuasVezes f x = f (f x);
+     fun contarIguais (alvo, l) = length (List.filter (fn x => x = alvo) l);
+
+     val trocar = fn : 'a * 'b -> 'b * 'a
+     val aplicarDuasVezes = fn : ('a -> 'a) -> 'a -> 'a
+     val contarIguais = fn : ''a * ''a list -> int
+
+ Olhe a segunda: o compilador descobriu sozinho que os dois 'a de f : 'a ->
+ 'a têm que ser o MESMO tipo - senão f (f x) não faria sentido. E a
+ terceira: ele viu o = lá dentro do fn e concluiu que 'a precisa admitir
+ igualdade, colocando as duas aspas.
+
+ COMO ELE FAZ ISSO
+ -----------------
+
+ O mecanismo se chama inferência de tipos à la Hindley-Milner, e a ideia, em
+ três passos, é acessível:
+
+   1. Dar um nome provisório ao tipo de tudo. Cada expressão sem tipo
+      conhecido ganha uma incógnita: t1, t2, t3...
+   2. Colher equações a partir do uso. Cada vez que algo é usado, isso
+      restringe seu tipo. Se aparece x + 1, então t_x = int. Se aparece f
+      x, então t_f = t_x -> t_novo. Se as duas cláusulas de uma função
+      devolvem coisas diferentes, os dois tipos têm que ser iguais.
+   3. Resolver o sistema por UNIFICAÇÃO - o mesmo tipo de casamento de
+      estruturas que você viu em pattern matching, agora aplicado a tipos.
+      O que sobrar sem restrição vira variável de tipo: 'a, 'b.
+
+ Acompanhe com tamanho:
+
+     fun tamanho [] = 0
+       | tamanho (_ :: cauda) = 1 + tamanho cauda;
+
+     o argumento casa com [] e com (_ :: cauda)
+                                   =>  é uma lista:  t_arg = t1 list
+     a primeira cláusula devolve 0                =>  t_ret = int
+     1 + (...) exige que tamanho devolva int      =>  consistente
+     tamanho cauda: cauda tem o mesmo tipo do arg =>  t_cauda = t1 list, ok
+     nada nunca restringiu t1                     =>  t1 vira 'a
+
+     resultado: 'a list -> int
+
+ O passo 3 é o coração. O algoritmo (chamado Algoritmo W, publicado por Luis
+ Damas e Robin Milner em 1982) tem duas propriedades notáveis, e é por elas
+ que ML ficou famosa:
+
+   - Ele sempre termina e sempre encontra uma resposta, se existir
+     alguma.
+   - A resposta é a MAIS GERAL possível. tamanho poderia legitimamente
+     ter recebido o tipo int list -> int, que também está correto. O
+     algoritmo não devolve esse: devolve 'a list -> int, que é o mais
+     geral de todos e do qual todos os outros são casos particulares.
+     Chama-se principal type.
+
+ Ou seja: você ganha o polimorfismo de graça. Não é preciso PEDIR para a
+ função ser genérica - ela já nasce tão genérica quanto o corpo permitir.
+
+ Também é por isso que o REPL responde sempre com o tipo (Tema 44): o tipo
+ não é algo que ele repete de volta para você, é algo que ele DESCOBRIU e
+ está mostrando.
+
+ ENTÃO POR QUE ANOTAR?
+ ---------------------
+
+ Se a máquina infere tudo, por que 22 temas exigindo anotação? Três razões,
+ e elas continuam valendo agora que a regra caiu:
+
+   1. A anotação é uma especificação. Escrever 'a Lizt -> int ANTES do
+      corpo é decidir o que a função faz. É a mesma disciplina do "pulo do
+      gato" do Tema 19: pensar no contrato antes de pensar na
+      implementação.
+   2. A anotação é onde o erro aparece. Sem anotação nenhuma, um engano no
+      meio de uma função de vinte linhas produz uma mensagem de erro
+      apontando para outro lugar - o unificador só falha onde as equações
+      se contradizem, que raramente é onde você errou. Com o tipo
+      declarado, o erro aparece no ponto certo.
+   3. A anotação é documentação que não mente. Comentário desatualiza;
+      anotação de tipo é conferida a cada compilação.
+
+ O costume da comunidade ML (e de Haskell, OCaml, Rust) é este: anotar o
+ tipo das funções de topo, deixar a inferência cuidar do resto - dos let
+ internos, dos fn passados como argumento, das variáveis locais. É o
+ equilíbrio que este tutorial recomenda daqui em diante.
+
+ EXERCÍCIOS
+ ----------
+
+ 64.1 Apague as anotações de três funções suas dos Temas 57 a 59 e confira
+      se o tipo inferido é o que você tinha escrito.
+ 64.2 Escreva fun aplicar f x = f x; e explique o tipo que sai.
+ 64.3 Escreva fun const x y = x; e explique por que aparecem dois tipos
+      diferentes.
+ 64.4 Escreva fun compor f g x = f (g x); e explique o tipo. (Você acabou de
+      escrever a composição de funções.)
+ 64.5 Escreva uma função cujo tipo inferido seja ('a -> 'b) -> ('b -> 'c) ->
+      'a -> 'c.
+ 64.6 Escreva fun estranha x = estranha x; e explique o tipo. (Cuidado: não
+      chame essa função.)
+ 64.7 Faça o passo a passo da inferência, no papel, para fun primeiro (x ::
+      _) = x.
+
+===============================================================================
+ TEMA 65 - OS LIMITES DA INFERÊNCIA
+===============================================================================
+
+ Nem tudo é mágica. Três lugares em que a inferência não é o que você
+ esperaria, e todos aparecem cedo na prática.
+
+ 1. SOBRECARGA: + NÃO É POLIMÓRFICO
+ ----------------------------------
+
+     fun soma (x, y) = x + y;
+
+     val soma = fn : int * int -> int
+
+ Por que int, se + funciona com real também? Porque + é SOBRECARREGADO (o
+ mesmo símbolo, duas funções diferentes), e sobrecarga é justamente o que a
+ inferência de Hindley-Milner não sabe resolver. Sem informação, SML aplica
+ um PADRÃO: int.
+
+ Se você queria reais, basta anotar UM dos dois - o resto se propaga:
+
+     fun soma (x : real, y) = x + y;
+
+     val soma = fn : real * real -> real
+
+ Vale o mesmo para *, -, <, > e abs. É a razão nº 1 de anotar mesmo quando
+ não se precisa.
+
+     fun maior (x, y) = if x > y then x else y;
+
+     val maior = fn : int * int -> int
+
+ Note que maior NÃO ficou ''a * ''a -> ''a, como você poderia esperar. >
+ também é sobrecarregado, e caiu no padrão int.
+
+ 2. VALUE RESTRICTION
+ --------------------
+
+     val v = rev [];
+
+     stdIn:1.6-1.16 Warning: type vars not generalized because of
+        value restriction are instantiated to dummy types (X1,X2,...)
+     val v = [] : ?.X1 list
+
+ Você esperava 'a list, e recebeu um tipo com um nome esquisito, ?.X1 list,
+ que não serve para nada: v não pode ser usado como lista de inteiros nem de
+ strings.
+
+ A regra por trás disso se chama VALUE RESTRICTION: SML só generaliza (isto
+ é, só dá um 'a de verdade) a uma declaração cujo lado direito seja um VALOR
+ SINTÁTICO - um literal, uma variável, uma função fn. rev [] é uma CHAMADA
+ DE FUNÇÃO, então não generaliza.
+
+ Compare com uma declaração que é um valor sintático:
+
+     val f = (fn x => x);
+     f 1;
+     f "a";
+
+     val f = fn : 'a -> 'a
+     val it = 1 : int
+     val it = "a" : string
+
+ Aqui generalizou, e f serviu para os dois tipos.
+
+ A regra existe por causa de referências mutáveis (ref), com as quais
+ generalizar chamadas de função permitiria escrever um programa que passa na
+ checagem de tipos e quebra ao rodar. A solução foi proibir a generalização
+ nesses casos.
+
+ Na prática, quando você topar com ?.X1, a saída é anotar:
+
+     val v : int list = rev [];
+
+ 3. O QUE A INFERÊNCIA NUNCA VAI FAZER
+ -------------------------------------
+
+ Ela não infere INTENÇÃO. Um tipo correto não é um programa correto:
+
+     fun somar [] = 0
+       | somar (x :: _) = x;
+
+     val somar = fn : int list -> int
+
+ Tipo perfeito, função errada - ela devolve a cabeça e ignora o resto.
+ Nenhum sistema de tipos pega isso. Vale repetir o que já foi dito no Tema
+ 58: tipos pegam erros de tipo, não erros de lógica.
+
+ EXERCÍCIOS
+ ----------
+
+ 65.1 Escreva fun dobro x = x * 2; e depois fun dobro x = x * 2.0;. Compare
+      os tipos.
+ 65.2 Escreva fun quadrado x = x * x; e tente chamar com 2.0. Conserte com
+      uma anotação só.
+ 65.3 Provoque a value restriction com val r = ref []; e leia o aviso.
+ 65.4 Escreva val lista = []; e descubra o tipo. Por que este generaliza e
+      rev [] não?
+ 65.5 Escreva uma função com tipo certo e comportamento errado, diferente do
+      exemplo acima.
+
+===============================================================================
+ TEMA 66 - DINAMICAMENTE TIPADO VS ESTATICAMENTE TIPADO
+===============================================================================
+
+ Agora que você programou nos dois, dá para ter a conversa de verdade. Ela é
+ mais interessante do que "um é melhor" - e as duas escolhas são
+ defensáveis.
+
+ O EXEMPLO QUE RESUME TUDO
+ -------------------------
+
+     Racket:                                SML:
+     (define (somar l)                      fun somar [] = 0
+       (if (null? l)                          | somar (x :: r) = x + somar r;
+           0
+           (+ (car l) (somar (cdr l)))))
+     (somar (list 1 2 "três"))              somar [1, 2, "três"];
+
+     Racket, ao RODAR:            SML, ao COMPILAR:
+     +: contract violation        Error: operator and operand
+       expected: number?            do not agree
+       given: "três"              operator domain:
+                                    'Z[INT] * 'Z[INT] list
+                                  operand:
+                                    'Z[INT] * string list
+
+ Note QUANDO cada mensagem aparece. A do Racket exigiu que o programa
+ rodasse, e mais: exigiu que ele chegasse até o terceiro elemento. Se a
+ lista tivesse mil elementos e o problema estivesse no de número 998, o
+ programa teria trabalhado 997 vezes antes de descobrir. Se o if que leva a
+ essa linha só fosse verdadeiro às terças-feiras, o erro apareceria numa
+ terça.
+
+ A do SML apareceu sem rodar nada.
+
+ A FAVOR DO ESTÁTICO
+ -------------------
+
+   1. O erro aparece cedo, e é o programador quem o vê. Não o usuário, não
+      o cliente, não o servidor de produção às três da manhã.
+   2. A cobertura é total. Testes cobrem os caminhos que alguém lembrou de
+      testar; o verificador de tipos cobre TODOS os caminhos, inclusive o
+      que só acontece às terças.
+   3. Refatorar deixa de dar medo. Mude um datatype e o compilador lista
+      todos os lugares que precisam mudar (match nonexhaustive, Tema 53).
+      É a diferença entre refatorar com uma lista de tarefas e refatorar
+      no escuro.
+   4. O tipo é documentação verificada. ('a -> 'b) -> 'a list -> 'b list
+      diz o que a função faz, e não pode desatualizar.
+   5. Desempenho. Sabendo os tipos em tempo de compilação, o compilador
+      não precisa carregar etiquetas de tipo nem conferir nada ao rodar.
+   6. Ferramentas. Autocompletar preciso, "renomear símbolo" confiável,
+      "ir para a definição" - tudo isso depende de o editor saber os
+      tipos.
+
+ A FAVOR DO DINÂMICO
+ -------------------
+
+ E aqui é preciso ser honesto, porque as vantagens são reais:
+
+   1. Menos cerimônia para começar. Um script de vinte linhas em Racket ou
+      Python está pronto antes de você terminar de modelar os tipos.
+   2. Heterogeneidade sem esforço. '(1 "a" #t) é uma lista legítima em
+      Racket. Em SML, ela exige um datatype que envolva as três
+      possibilidades - e depois case em todo lugar que a consumir. Para
+      ler um JSON qualquer ou uma linha de configuração, isso é trabalho
+      de verdade.
+   3. Programas corretos que o verificador rejeita. Este é o argumento
+      sério, e não tem resposta. Todo verificador de tipos é conservador:
+      ele rejeita programas que nunca dariam erro, porque não consegue
+      PROVAR que não dariam. A value restriction do Tema 65 é um exemplo
+      pequeno; há outros grandes.
+   4. Metaprogramação e reflexão. Manipular o programa como dado, do jeito
+      que Lisp faz com eval (Tema 9), é natural no dinâmico e difícil no
+      estático.
+   5. O REPL como ambiente de trabalho. Redefinir uma função e continuar
+      de onde parou, com os dados na memória, é mais fluido quando não há
+      recompilação e checagem no caminho.
+
+ O QUE OS DOIS LADOS NÃO PROVAM
+ ------------------------------
+
+ Duas frases que se ouvem muito e que não se sustentam:
+
+   - "Se compilou, está certo." Não. somar do Tema 65 compila e está
+     errada. Tipos pegam uma CLASSE de erros - uma classe grande e
+     comum, mas uma só.
+   - "Tipos são só burocracia, testes resolvem." Não. Testes e tipos
+     pegam coisas diferentes: testes verificam CASOS, tipos verificam
+     TODOS os casos de uma propriedade mais fraca. Um não substitui o
+     outro, e projetos grandes usam os dois.
+
+ PARA ONDE O MUNDO FOI
+ ---------------------
+
+ O detalhe mais interessante desta comparação é que, nos últimos vinte anos,
+ ela deixou de ser uma escolha binária. Linguagens dinâmicas ganharam
+ sistemas de tipos opcionais, quase sempre inspirados em ML:
+
+     Python      type hints (2014) + mypy, pyright
+     JavaScript  TypeScript (2012)
+     Ruby        RBS / Sorbet
+     PHP         tipos declarados a partir do PHP 7
+     Racket       Typed Racket (!)
+     Elixir       tipos graduais (a partir de 2024)
+
+ E, na direção contrária, linguagens estáticas adotaram inferência para
+ eliminar a burocracia que dava má fama ao estático - auto em C++, var em C#
+ e Java, := em Go, e a inferência completa de Rust, Scala, Swift e Kotlin.
+
+ Os dois lados convergiram para o mesmo lugar: tipos estáticos, mas
+ inferidos. Que é, exatamente, o que Robin Milner construiu em Edimburgo em
+ 1975 para conferir demonstrações matemáticas.
+
+ EXERCÍCIOS
+ ----------
+
+ 66.1 Escreva a mesma função em Racket e em SML e provoque, em cada uma, um
+      erro de tipo. Anote QUANDO cada erro apareceu.
+ 66.2 Pegue um programa em Racket dos tutoriais anteriores que você NÃO
+      consegue traduzir para SML sem mudar a estrutura. Explique o que
+      atrapalha.
+ 66.3 Modele em SML um valor que pode ser inteiro, string ou booleano (o que
+      em Racket seria só uma lista heterogênea). Escreva mostrar para ele.
+      Quantas linhas a mais foram necessárias?
+ 66.4 Escreva um programa em SML que passa na checagem de tipos e mesmo
+      assim quebra ao rodar. (Dica: Tema 63.)
+ 66.5 Procure um exemplo real de bug que um sistema de tipos teria evitado,
+      e um exemplo de programa correto que um sistema de tipos rejeitaria.
+ 66.6 Escolha uma linguagem da tabela acima e descubra se o sistema de tipos
+      dela roda ANTES do programa ou junto com ele.
+
+===============================================================================
+ TEMA 67 - FECHAMENTO: O QUE MUDOU E O QUE NÃO MUDOU
+===============================================================================
+
+ O QUE NÃO MUDOU
+ ---------------
+
+ A tabela do Tema 41 continua inteira, e é a razão de este material ter
+ vindo depois de recursão e não antes:
+
+     Tipo de retorno   Caso base     Operador do caso geral
+     ---------------   -----------   ----------------------
+     número            0, 1          +, *, Int.max
+     lista             Nihil / []    Kons / ::
+     booleano          false, true   orelse, andalso
+
+ As cinco perguntas do Tema 41 - qual é o tipo do retorno, quantas vezes a
+ cabeça aparece, quanto a recursão anda, quantos casos base, a operação é
+ fixa ou é parâmetro - respondem tanto em Racket quanto em SML. O "pulo do
+ gato" do Tema 19 é o mesmo. Você não aprendeu a programar de novo: aprendeu
+ a escrever a mesma coisa com garantias diferentes.
+
+ O QUE MUDOU
+ -----------
+
+                           Racket                    Standard ML
+     -------------------   ---------------------   -------------------------
+     lista                 primitiva               datatype que você escreve
+                                                   (a nativa é açúcar disso)
+     testar o caso base    (null? l)               padrão [] ou Nihil
+     pegar cabeça/cauda    (car l), (cdr l)        padrão x :: resto
+     uma função, vários    de graça, sem falar     polimorfismo paramétrico,
+     tipos de lista        nada sobre tipos        com 'a - e conferido
+     tipo dos elementos    pode ser misturado      tem que ser o mesmo
+     erro de tipo          ao rodar aquela linha   antes de rodar
+     escrever o tipo       não existe              inferido, mas vale anotar
+
+ A LINHA DO TEMPO DO CURSO
+ -------------------------
+
+ Você agora percorreu quatro pontos bem distantes do espaço das linguagens:
+
+     egrep    linguagem declarativa, sem variáveis, sem funções - só padrões
+     Forth    imperativa, baseada em pilha, sem tipos, sintaxe mínima
+     Racket   funcional, dinamicamente tipada, código = dado
+     SML      funcional, estaticamente tipada, tipos algébricos e inferência
+
+ Nenhuma delas é a "melhor". Cada uma escolheu o que garantir e o que deixar
+ por conta do programador, e o conteúdo desta disciplina é justamente saber
+ ler essas escolhas.
+
+ EXERCÍCIOS FINAIS
+ -----------------
+
+ 67.1 Escolha cinco funções dos Temas 16 a 41 (Racket) e traduza para SML
+      com listas nativas e anotação de tipo. Para cada uma, diga se ficou
+      mais curta ou mais longa, e por quê.
+ 67.2 Refaça o exercício 55.3 (o datatype Expr com números, somas e
+      produtos), agora acrescentando divisão - e usando um datatype de
+      resultado para tratar a divisão por zero, como no 54.4. Escreva
+      avaliar : Expr -> Resultado.
+ 67.3 Escreva um interpretador para uma linguagem minúscula: datatype Expr =
+      Num of int | Var of string | Soma of Expr * Expr | Seja of string *
+      Expr * Expr, onde Seja (x, e1, e2) é o let x = e1 in e2. A função
+      avaliar vai precisar de um AMBIENTE - uma lista de pares (string *
+      int). Este exercício é, em miniatura, o assunto da segunda metade da
+      disciplina.
+ 67.4 Compare o seu avaliar do 67.3 com o eval do Tema 9 em Racket. O que o
+      datatype obrigou você a decidir que o Racket deixava em aberto?
+ 67.5 Pesquise um trecho de código em OCaml, Haskell, Rust ou F# que use
+      pattern matching sobre um tipo soma. Compare com o SML que você
+      escreveu.
+
+===============================================================================
+ FIM DA PARTE 2
+===============================================================================

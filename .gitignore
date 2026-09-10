@@ -59,6 +59,11 @@ target/
 *.cmx
 *.fasl
 
+# ---- Standard ML (SML/NJ, MLton) ----
+.cm/
+*.amd64-unix
+*.x86-unix
+
 # ---- Prolog / Erlang ----
 *.qlf
 *.beam
