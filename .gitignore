@@ -18,8 +18,10 @@ $RECYCLE.BIN/
 # ---- Ferramentas ----
 .claude/settings.local.json
 
-# ---- Repositorio proprio (nao faz parte deste repo) ----
+# ---- Repositorios proprios (nao fazem parte deste repo) ----
 pl-quiz/
+mobile/
+clp-quiz/
 
 # ---- Binarios e objetos compilados ----
 *.o
