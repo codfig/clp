@@ -2,6 +2,7 @@
 Conceitos de Linguagens de Programação
 
 ## Últimas mensagens
+- [09out] Aula 06: dois tutoriais - recursão com acumuladores (de `somar` a `reduce`, cada função em Racket e em SML) e a linguagem LET do livro EOPL, com um interpretador e dois compiladores (para Racket e para Forth), tudo em SML. Material em [aula6/README.md](aula6/README.md).
 - [10set] Aula 04: antes da prova, começa **Standard ML** - a primeira linguagem estaticamente tipada do curso. Material e instruções de instalação em [aula4/README.md](aula4/README.md). Quem quiser chegar com o ambiente pronto: `sudo apt install smlnj` (ou <https://sosml.org>, direto no navegador).
 - [05set] Avaliação P1: 
    - Incluído simulado + gabarito e _cheat sheet_ (colinha) ; simulado ~~pode ser~~ já foi atualizado (versão anterior no commit anterior)
@@ -24,5 +25,14 @@ Conceitos de Linguagens de Programação
 - [x] 11/09/2026 - Aula 04 - Standard ML + Avaliação P1 
 - ~~18/09/2026 - SECCOMP - Sem aula~~
 - ~~25/09/2026 - Sem aula~~
+- [x] 02/10/2026 - Aula 05 - Análise Sintática (Abstract Syntax Tree)
+- [x] 09/10/2026 - Aula 06 - Recursão com acumuladores (reduce) + interpretador LET
+- [ ] 16/10/2026 - Aula 07 -
+- [ ] 23/10/20/26 - Aula 08 -
+- ~~30/10/2026 - Dia Do Funcionário Público (realocado em 02/10/2026) - Sem aula~~
+- [ ] 06/11/2026 - Aula 09 
+- [ ] 13/11/2026 - Aula 10 + **Avaliação P2**
+- ~~ 20/11/2026 - Feriado , Sem aula~~
+
 
 ## Registro de mensagens anteriores

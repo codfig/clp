@@ -1,0 +1,1244 @@
+===============================================================================
+ RECURSÃO COM ACUMULADORES: DE SOMAR A REDUCE, EM RACKET E EM SML
+===============================================================================
+
+ Pré-requisito: os tutoriais de recursão em Racket (Temas 16 a 41, pasta
+ recursao/) e os de Standard ML (Temas 42 a 67, pasta sml/), pelo menos até o
+ Tema 63 (listas nativas).
+ Bibliotecas...: exemplos.rkt e exemplos.sml (mesma pasta)
+
+ Toda função recursiva que você escreveu até aqui deixa trabalho PENDENTE: (+
+ (car l) (somar (cdr l))) só consegue somar depois que a chamada recursiva
+ volta. Este tutorial apresenta o outro jeito de fazer a mesma coisa - fazer
+ a conta NA IDA, carregando o resultado parcial num parâmetro extra, o
+ ACUMULADOR - e mostra que esse jeito, uma vez generalizado, é uma das
+ funções mais famosas da programação: reduce, também chamada de fold.
+
+ Cada função aparece BILÍNGUE: primeiro em Racket, depois em SML, sempre com
+ o mesmo nome (o hífen de Racket vira maiúscula em SML: somar-acc /
+ somarAcc). A ideia é que você enxergue que o acumulador não é um truque de
+ uma linguagem: é uma maneira de pensar.
+
+ As duas bibliotecas trazem TODOS os exemplos do texto, prontos para
+ carregar:
+
+     racket -i -e '(enter! "exemplos.rkt")'
+     sml exemplos.sml
+
+ Elas contêm apenas os exemplos do texto - nenhuma resposta de exercício.
+ Como sempre, a conferência é o próprio REPL.
+
+===============================================================================
+ TEMA 68 - A RECURSÃO QUE TRABALHA NA VOLTA
+===============================================================================
+
+ Volte ao somar do Tema 20, em Racket, e ao do Tema 63, em SML:
+
+     (define (somar l)
+       (if (null? l)
+           0
+           (+ (car l) (somar (cdr l)))))
+
+     fun somar ([] : int list) : int = 0
+       | somar (cabeca :: cauda : int list) : int = cabeca + somar cauda;
+
+ Agora vamos RASTREAR a função - não para construí-la (o Tema 19 pediu para
+ não fazer isso), mas para ver o que a máquina faz. Racket tem uma ferramenta
+ pronta para isso, trace:
+
+     (require racket/trace)
+     (trace somar)
+     (somar '(4 6 0 2))
+
+     >(somar '(4 6 0 2))
+     > (somar '(6 0 2))
+     > >(somar '(0 2))
+     > > (somar '(2))
+     > > >(somar '())
+     < < <0
+     < < 2
+     < <2
+     < 8
+     <12
+     12
+
+ Cada > é uma chamada que COMEÇA; cada < é uma chamada que TERMINA, com o
+ valor que devolveu. Repare no desenho: uma escada que desce e depois sobe.
+ Enquanto desce, nenhuma soma é feita - cada chamada fica parada, esperando a
+ de baixo, com um (+ 4 ...), (+ 6 ...), (+ 0 ...), (+ 2 ...) pendente. Só
+ quando a lista acaba é que as somas acontecem, de baixo para cima, NA VOLTA:
+
+     (somar '(4 6 0 2))
+     = (+ 4 (somar '(6 0 2)))
+     = (+ 4 (+ 6 (somar '(0 2))))
+     = (+ 4 (+ 6 (+ 0 (somar '(2)))))
+     = (+ 4 (+ 6 (+ 0 (+ 2 (somar '())))))
+     = (+ 4 (+ 6 (+ 0 (+ 2 0))))        <- o fundo da escada
+     = (+ 4 (+ 6 (+ 0 2)))
+     = (+ 4 (+ 6 2))
+     = (+ 4 8)
+     = 12
+
+ A expressão CRESCE enquanto a recursão desce, e só ENCOLHE na volta. Para
+ uma lista de um milhão de elementos, a máquina precisa lembrar de um milhão
+ de somas pendentes ao mesmo tempo. Essa memória tem nome: é a PILHA DE
+ CHAMADAS - sim, uma pilha, a mesma estrutura do Forth do Tema 2.
+
+ Pense em como VOCÊ somaria uma pilha de notas de dinheiro. Ninguém faz como
+ somar: separar todas as notas, e só depois de chegar na última começar a
+ somar de trás para frente. Você pega a primeira, guarda o valor de cabeça,
+ pega a segunda, soma com o que já tinha, e segue. Em cada momento você
+ carrega UM número só: o total até ali.
+
+ Esse número carregado de um passo para o outro é o ACUMULADOR.
+
+ EXERCÍCIOS
+ ----------
+
+ 68.1 Rode o trace acima. Depois rode (trace contar-elementos) com a sua
+      solução do Tema 22 e compare as duas escadas.
+ 68.2 Escreva, como no quadro acima, a expansão de (somar '(1 2 3)) passo a
+      passo. Quantas somas ficaram pendentes no ponto mais fundo?
+ 68.3 Para desligar o rastreamento, use (untrace somar). Faça isso antes de
+      seguir.
+
+===============================================================================
+ TEMA 69 - SOMAR COM ACUMULADOR
+===============================================================================
+
+ A ideia do monte de notas, em código: um parâmetro a mais, acc, que guarda o
+ total parcial.
+
+ Racket:
+
+     (define (somar-acc l acc)
+       (if (null? l)
+           acc
+           (somar-acc (cdr l) (+ acc (car l)))))
+
+ SML:
+
+     fun somarAcc ([] : int list, acc : int) : int = acc
+       | somarAcc (cabeca :: cauda : int list, acc : int) : int =
+             somarAcc (cauda, acc + cabeca);
+
+     (somar-acc '(4 6 0 2) 0)
+     >>> 12
+
+     somarAcc ([4, 6, 0, 2], 0);
+     val it = 12 : int
+
+ Compare, linha a linha, com o somar do Tema 68. Mudaram três coisas:
+
+   1. O caso base devolve acc, e não mais 0. Quando a lista acaba, a conta já
+      está feita - só falta entregá-la.
+   2. O caso geral não tem mais nada em volta da chamada recursiva. A soma
+      foi para DENTRO dos argumentos: (+ acc (car l)) é calculado ANTES da
+      chamada, e o resultado viaja como o novo acumulador.
+   3. O 0 mudou de lugar. Ele saiu do caso base e foi para a CHAMADA inicial,
+      (somar-acc '(4 6 0 2) 0). É o valor do total antes de olhar qualquer
+      elemento.
+
+ Rastreando:
+
+     (trace somar-acc)
+     (somar-acc '(4 6 0 2) 0)
+
+     >(somar-acc '(4 6 0 2) 0)
+     >(somar-acc '(6 0 2) 4)
+     >(somar-acc '(0 2) 10)
+     >(somar-acc '(2) 10)
+     >(somar-acc '() 12)
+     <12
+     12
+
+ Não há mais escada. É uma LINHA RETA: todas as chamadas no mesmo nível, e um
+ único < no final. A soma acontece NA IDA, e na volta não há nada para fazer.
+ O quadro de expansão também não cresce mais:
+
+     (somar-acc '(4 6 0 2) 0)
+     = (somar-acc '(6 0 2) 4)
+     = (somar-acc '(0 2) 10)
+     = (somar-acc '(2) 10)
+     = (somar-acc '() 12)
+     = 12
+
+ Em cada linha há UMA chamada e nenhuma operação pendente. É exatamente o
+ monte de notas: em cada momento, um número só.
+
+ O PULO DO GATO, VERSÃO ACUMULADOR
+ ---------------------------------
+
+ O pulo do gato do Tema 19 era: "confie que a chamada recursiva já devolve a
+ resposta pronta para a cauda". Com acumulador, a confiança é outra:
+
+     acc é a resposta para a parte da lista que JÁ FOI vista. Meu trabalho é
+     atualizá-la com a cabeça e passar adiante.
+
+ Essa frase - o que o acumulador significa - é a coisa mais importante a
+ decidir antes de escrever. Em somar-acc, acc significa "a soma dos elementos
+ que já ficaram para trás". Decidido isso, o resto sai sozinho:
+
+ - valor inicial: a soma de NENHUM elemento, ou seja, 0;
+ - atualização: soma anterior mais a cabeça, (+ acc (car l));
+ - caso base: não sobrou nada para ver, então a resposta é acc.
+
+ CUIDADO - O VALOR INICIAL DO ACUMULADOR FAZ PARTE DA RESPOSTA
+ -------------------------------------------------------------
+
+ (somar-acc '(4 6 0 2) 100) devolve 112, e não 12. O acumulador não sabe que
+ "deveria" começar em 0: ele soma ao que recebeu. Errar o valor inicial é o
+ erro mais comum com acumuladores, e o mais difícil de ver, porque a função
+ não quebra - devolve um número, só que errado. O próximo tema mostra como
+ esconder esse valor de quem usa a função.
+
+ EXERCÍCIOS
+ ----------
+
+ 69.1 Rode os dois rastreamentos (Temas 68 e 69) e descreva a diferença de
+      formato com suas palavras.
+ 69.2 O que significa acc em cada linha do quadro de expansão acima? Escreva
+      a frase para a terceira linha.
+ 69.3 Escreva produto-acc (Racket) e produtoAcc (SML). Qual é o valor
+      inicial? (O Tema 23 já respondeu essa pergunta, para o caso base.)
+ 69.4 Em somar-acc, troque (+ acc (car l)) por (+ (car l) acc). Muda alguma
+      coisa? E se fosse - em vez de +?
+
+===============================================================================
+ TEMA 70 - O EMBRULHO, E POR QUE ISSO SE CHAMA ITERAÇÃO
+===============================================================================
+
+ Quem quer somar uma lista não deveria precisar saber que existe um
+ acumulador, nem lembrar de passar 0. A solução é EMBRULHAR: uma função de um
+ parâmetro só, que chama a de dois com o valor inicial certo.
+
+ Racket - um define dentro do outro (o de dentro só é visível ali):
+
+     (define (somar-it l)
+       (define (laço l acc)
+         (if (null? l)
+             acc
+             (laço (cdr l) (+ acc (car l)))))
+       (laço l 0))
+
+ SML - o let ... in ... end do Tema 49, agora com uma fun dentro:
+
+     fun somarIt (l : int list) : int =
+         let
+             fun laco ([] : int list, acc : int) : int = acc
+               | laco (cabeca :: cauda : int list, acc : int) : int =
+                     laco (cauda, acc + cabeca)
+         in
+             laco (l, 0)
+         end;
+
+     (somar-it '(4 6 0 2))
+     >>> 12
+
+     somarIt [4, 6, 0, 2];
+     val it = 12 : int
+
+ Para quem chama, somar-it é indistinguível de somar: mesmo parâmetro, mesmo
+ resultado. A diferença está toda do lado de dentro.
+
+ POR QUE "IT": RECURSÃO DE CAUDA
+ -------------------------------
+
+ O sufixo -it é de ITERATIVO. O motivo é o seguinte.
+
+ Em laço, a chamada recursiva é a ÚLTIMA coisa que a função faz: o valor dela
+ é devolvido do jeito que veio, sem nenhuma conta por cima. Uma chamada nessa
+ posição se chama CHAMADA DE CAUDA (tail call), e uma função cujas chamadas
+ recursivas são todas de cauda se chama RECURSIVA DE CAUDA (tail recursive).
+
+ Se não há nada a fazer depois que a chamada volta, então não há por que
+ lembrar de onde ela veio. Racket e SML sabem disso: uma chamada de cauda não
+ empilha nada, ela REAPROVEITA o espaço da chamada atual. Na prática, laço
+ vira um laço de repetição - o mesmo que você escreveria em uma linguagem
+ imperativa:
+
+     acc = 0
+     enquanto l não for vazia:
+         acc = acc + primeiro(l)
+         l   = resto(l)
+     devolva acc
+
+ Os parâmetros l e acc são exatamente as duas variáveis do laço, e cada
+ chamada recursiva é uma volta do "enquanto", com os valores novos das
+ variáveis. Não existe atribuição: cada volta recebe valores novos por
+ parâmetro. É por isso que linguagens funcionais podem viver sem while e sem
+ for.
+
+ O livro clássico de Abelson e Sussman (SICP, seção 1.2.1) dá nome aos dois
+ formatos que você viu no trace:
+
+     formato      nome no SICP           o que cresce
+     -----------  ---------------------  ----------------------------
+     escada       processo recursivo     a pilha de operações pendentes
+     linha reta   processo iterativo     nada - só os valores das variáveis
+
+ Repare na sutileza: as DUAS funções são recursivas (as duas chamam a si
+ mesmas). O que muda é o PROCESSO que elas geram quando rodam.
+
+ CUIDADO - "ÚLTIMA COISA" É SEM NADA POR CIMA, NEM UM ADD1
+ ---------------------------------------------------------
+
+ (add1 (contar-elementos (cdr l))) NÃO é chamada de cauda, mesmo que add1
+ pareça pouco: depois que a recursão volta ainda falta somar 1. O mesmo vale
+ para (cons (car l) (...)), (+ ...), cabeca :: ... e ... @ [cabeca]. Já os
+ dois ramos de um if estão em posição de cauda, assim como a última expressão
+ de um and/or (Racket) ou de um andalso/orelse (SML).
+
+ EXERCÍCIOS
+ ----------
+
+ 70.1 Reescreva seu produto-acc (69.3) embrulhado, como produto-it e
+      produtoIt.
+ 70.2 Para cada uma, diga se a chamada recursiva é de cauda: my-map (Tema
+      28), pertence? (Tema 29), remove-primeiro (Tema 26), my-append (Tema
+      37).
+ 70.3 Tente chamar laço direto no REPL, fora de somar-it. O que acontece, e
+      por quê?
+
+===============================================================================
+ TEMA 71 - MAIS RESULTADOS NUMÉRICOS: CONTAR-ELEMENTOS E CONTAR
+===============================================================================
+
+ O mesmo roteiro do Tema 69, sempre começando pela frase "o que acc
+ significa".
+
+ contar-elementos (Tema 22): acc é "quantos elementos já ficaram para trás".
+ Começa em 0; a cada passo, mais um - sem nem olhar a cabeça.
+
+     (define (contar-elementos-acc l acc)
+       (if (null? l)
+           acc
+           (contar-elementos-acc (cdr l) (add1 acc))))
+
+     fun comprimentoAcc ([] : 'a list, acc : int) : int = acc
+       | comprimentoAcc (_ :: cauda : 'a list, acc : int) : int =
+             comprimentoAcc (cauda, acc + 1);
+
+     (contar-elementos-acc '(5 1 4 6 10) 0)
+     >>> 5
+
+     comprimentoAcc ([5, 1, 4, 6, 10], 0);
+     val it = 5 : int
+
+ Repare que agora add1 está DENTRO do argumento, e não em volta da chamada.
+ Essa é a diferença inteira entre os dois formatos do Tema 70.
+
+ contar (Tema 21): acc é "quantas ocorrências de x já ficaram para trás".
+ Começa em 0; se a cabeça for x, mais um, senão fica como está.
+
+     (define (contar-acc x l acc)
+       (if (null? l)
+           acc
+           (if (equal? x (car l))
+               (contar-acc x (cdr l) (add1 acc))
+               (contar-acc x (cdr l) acc))))
+
+     fun contarAcc (x : ''a, [] : ''a list, acc : int) : int = acc
+       | contarAcc (x : ''a, cabeca :: cauda : ''a list, acc : int) : int =
+             if x = cabeca then contarAcc (x, cauda, acc + 1)
+             else contarAcc (x, cauda, acc);
+
+     (contar-acc 3 '(3 5 3 1) 0)
+     >>> 2
+
+     contarAcc (3, [3, 5, 3, 1], 0);
+     val it = 2 : int
+
+ As duas chamadas recursivas, nos dois ramos do if, são de cauda. O que muda
+ entre os ramos é só o NOVO VALOR do acumulador: (add1 acc) ou acc. O ''a com
+ duas aspas é o mesmo do Tema 60 (o = exige um tipo com igualdade), e o
+ Warning: calling polyEqual que aparece ao carregar o arquivo é o mesmo
+ também.
+
+ A TABELA DO TEMA 23, COM ACUMULADOR
+ -----------------------------------
+
+                        sem acumulador                com acumulador
+                        (processo recursivo)          (processo iterativo)
+     -----------------  ----------------------------  ----------------------------
+     o valor neutro     é o caso base                 é o valor INICIAL de acc
+     o operador         age NA VOLTA, em volta da     age NA IDA, dentro do
+                        chamada recursiva             argumento acc
+     o caso base        devolve o neutro              devolve acc
+
+ EXERCÍCIOS
+ ----------
+
+ 71.1 Escreva maior-acc / maiorAcc: o maior elemento de uma lista de números.
+      Qual deveria ser o valor inicial? Dica: não existe um "neutro" óbvio
+      para o máximo. Use a CABEÇA da lista como valor inicial e comece pelo
+      resto - e decida o que fazer com a lista vazia (em SML, raise Empty,
+      como no maiorDe do Tema 57).
+ 71.2 Escreva somar-positivos-acc / somarPositivosAcc (o 57.4 com
+      acumulador).
+ 71.3 Escreva contar-pares-acc / contarParesAcc.
+ 71.4 Embrulhe as três, como no Tema 70.
+
+===============================================================================
+ TEMA 72 - RESULTADOS LÓGICOS: QUANDO O ACUMULADOR NEM PRECISA EXISTIR
+===============================================================================
+
+ Releia pertence? (Tema 29):
+
+     (define (pertence? x l)
+       (if (null? l)
+           #f
+           (if (equal? x (car l))
+               #t
+               (pertence? x (cdr l)))))
+
+     fun pertence (x : ''a, [] : ''a list) : bool = false
+       | pertence (x : ''a, cabeca :: cauda : ''a list) : bool =
+             x = cabeca orelse pertence (x, cauda);
+
+ A chamada recursiva já é de cauda! Não há nada em volta dela: se a cabeça
+ não é x, a resposta para a lista inteira É a resposta para a cauda, sem
+ retoque. Na versão SML, ela está na última posição de um orelse - que, como
+ o CUIDADO do Tema 70 disse, também conta como posição de cauda. Rode (trace
+ pertence?) e confira: linha reta.
+
+ O mesmo vale para existe? e todos? (Temas 32 e 33). Funções de resultado
+ lógico costumam nascer iterativas, por um motivo simples: assim que a
+ resposta é conhecida, a busca PARA. Não há resultado parcial para carregar -
+ ou já achou, ou ainda não.
+
+ Mas há dois tipos de situação em que um acumulador lógico faz sentido.
+
+ 1. O ACUMULADOR É O PRÓPRIO RESULTADO, SENDO CONSTRUÍDO
+ -------------------------------------------------------
+
+ comprimento-par?: a lista tem um número par de elementos? Daria para contar
+ e testar no fim, mas basta um interruptor: acc significa "o que já passou
+ tem tamanho par". Começa em #t (zero elementos é par) e VIRA a cada
+ elemento.
+
+     (define (comprimento-par-acc? l acc)
+       (if (null? l)
+           acc
+           (comprimento-par-acc? (cdr l) (not acc))))
+
+     fun comprimentoParAcc ([] : 'a list, acc : bool) : bool = acc
+       | comprimentoParAcc (_ :: cauda : 'a list, acc : bool) : bool =
+             comprimentoParAcc (cauda, not acc);
+
+     (comprimento-par-acc? '(a b c d) #t)
+     >>> #t
+     (comprimento-par-acc? '(a b c) #t)
+     >>> #f
+
+     comprimentoParAcc ([1, 2, 3, 4], true);
+     val it = true : bool
+
+ 2. O ACUMULADOR GUARDA CONTEXTO, E NÃO RESULTADO
+ ------------------------------------------------
+
+ sem-vizinhos-iguais?: existe algum elemento igual ao que vem logo antes
+ dele? Para responder olhando um elemento por vez, é preciso LEMBRAR do
+ anterior. É isso que o acumulador carrega: não um total, mas um pedaço do
+ passado.
+
+     (define (sem-vizinhos-iguais-acc? anterior l)
+       (if (null? l)
+           #t
+           (if (equal? anterior (car l))
+               #f
+               (sem-vizinhos-iguais-acc? (car l) (cdr l)))))
+
+     (define (sem-vizinhos-iguais? l)
+       (or (null? l)
+           (sem-vizinhos-iguais-acc? (car l) (cdr l))))
+
+     fun semVizinhosIguaisAcc (anterior : ''a, [] : ''a list) : bool = true
+       | semVizinhosIguaisAcc (anterior : ''a, cabeca :: cauda : ''a list) : bool =
+             anterior <> cabeca andalso semVizinhosIguaisAcc (cabeca, cauda);
+
+     fun semVizinhosIguais ([] : ''a list) : bool = true
+       | semVizinhosIguais (cabeca :: cauda : ''a list) : bool =
+             semVizinhosIguaisAcc (cabeca, cauda);
+
+     (sem-vizinhos-iguais? '(1 2 1 2))
+     >>> #t
+     (sem-vizinhos-iguais? '(1 2 2 3))
+     >>> #f
+
+ Repare em três detalhes. O caso base devolve #t, e não acc: aqui o
+ acumulador não é a resposta. O novo valor do acumulador é a cabeça, (car l):
+ o elemento de agora vira "o anterior" do próximo passo. E o embrulho tem
+ trabalho de verdade - tratar a lista vazia e escolher o valor inicial do
+ acumulador, que é o primeiro elemento.
+
+ CUIDADO - NEM TODO PARÂMETRO EXTRA É UM "TOTAL"
+ -----------------------------------------------
+
+ Em somar-acc, o acumulador é a resposta parcial. Em
+ sem-vizinhos-iguais-acc?, é memória. Os dois são acumuladores no sentido
+ técnico - um parâmetro extra que leva informação de uma chamada para a
+ próxima -, e por isso a pergunta do Tema 69 continua sendo a primeira: o que
+ ESTE acumulador significa? Se a resposta for "o resultado até aqui", o caso
+ base devolve acc. Se for outra coisa, o caso base precisa ser pensado.
+
+ EXERCÍCIOS
+ ----------
+
+ 72.1 Rode (trace pertence?) e (trace todos?) (Tema 33) e confirme que as
+      duas geram linha reta.
+ 72.2 Escreva ordenado? / ordenado (exercício 59.3) com um acumulador de
+      contexto, no molde de sem-vizinhos-iguais?.
+ 72.3 Escreva todos-acc? / todosAcc com um acumulador booleano que começa em
+      #t e é atualizado com and. Compare com todos? do Tema 33: a sua versão
+      para assim que encontra um elemento que falha? O que isso diz sobre
+      usar acumulador quando a função já era iterativa?
+ 72.4 Escreva comprimento-impar? reaproveitando comprimento-par-acc? - sem
+      escrever recursão nova. (Basta mudar o valor inicial.)
+
+===============================================================================
+ TEMA 73 - A FUNÇÃO REVERSE: ONDE O ACUMULADOR BRILHA
+===============================================================================
+
+ Até aqui, o acumulador mudou o FORMATO do processo, mas a quantidade de
+ trabalho era a mesma. Com reverse, ele muda a quantidade de trabalho - e
+ muito.
+
+ A versão sem acumulador é a do exercício 37.4: a cauda invertida vem pronta
+ da recursão, e a cabeça vai para o FIM dela com append.
+
+     (define (my-reverse l)
+       (if (null? l)
+           '()
+           (append (my-reverse (cdr l)) (list (car l)))))
+
+     fun inverter ([] : 'a list) : 'a list = []
+       | inverter (cabeca :: cauda : 'a list) : 'a list = inverter cauda @ [cabeca];
+
+ Está correta. O problema é o custo. append (Tema 37) percorre a PRIMEIRA
+ lista inteira para pendurar a segunda no fim. Para inverter uma lista de n
+ elementos, my-reverse faz um append sobre uma lista de n-1 elementos, um
+ sobre n-2, ..., um sobre 1. O total é
+
+     (n-1) + (n-2) + ... + 2 + 1  =  n(n-1)/2
+
+ passos. Para 20 000 elementos, são quase 200 milhões de cons.
+
+ Agora com acumulador. A frase: acc é "os elementos já vistos, em ordem
+ inversa". Começa em '() (nada visto). A cada passo, a cabeça vai para a
+ FRENTE do acumulador - e frente é justamente onde cons coloca as coisas, de
+ graça.
+
+     (define (reverse-acc l acc)
+       (if (null? l)
+           acc
+           (reverse-acc (cdr l) (cons (car l) acc))))
+
+     (define (reverse-it l)
+       (reverse-acc l '()))
+
+     fun inverterAcc ([] : 'a list, acc : 'a list) : 'a list = acc
+       | inverterAcc (cabeca :: cauda : 'a list, acc : 'a list) : 'a list =
+             inverterAcc (cauda, cabeca :: acc);
+
+     fun inverterIt (l : 'a list) : 'a list = inverterAcc (l, []);
+
+ Rastreando:
+
+     (reverse-acc '(1 2 3 4) '())
+     = (reverse-acc '(2 3 4) '(1))
+     = (reverse-acc '(3 4)   '(2 1))
+     = (reverse-acc '(4)     '(3 2 1))
+     = (reverse-acc '()      '(4 3 2 1))
+     = '(4 3 2 1)
+
+ Olhe as duas colunas: são duas PILHAS. A cada passo, o topo da primeira
+ passa para o topo da segunda. É o que você faz para inverter uma pilha de
+ pratos: tirar um por um e empilhar ao lado. Não precisa de append, não
+ precisa percorrer nada duas vezes: n passos, um cons cada.
+
+ Medindo, em Racket:
+
+     (define grande (range 20000))
+     (time (void (my-reverse grande)))
+     (time (void (reverse-it grande)))
+
+     cpu time: 1353 real time: 1375 gc time: 73
+     cpu time: 0 real time: 0 gc time: 0
+
+ E em SML, com uma pequena função de cronômetro (está comentada em
+ exemplos.sml):
+
+     cronometrar (fn () => inverter grande);
+     cronometrar (fn () => inverterIt grande);
+
+     1.134 s
+     0.000 s
+
+ (O void em Racket só serve para o REPL não imprimir 20 000 números. Os
+ tempos exatos variam de máquina para máquina; a diferença de ordem de
+ grandeza, não.)
+
+ Mais de um segundo contra zero, para a MESMA resposta. Dobre o tamanho da
+ lista e a versão sem acumulador leva quatro vezes mais; a com acumulador,
+ duas vezes. Esse é o primeiro exemplo do curso em que escolher como recursar
+ decide se o programa é usável.
+
+ CUIDADO - (CONS ACC (CAR L)) NÃO É O MESMO QUE (CONS (CAR L) ACC)
+ -----------------------------------------------------------------
+
+ cons recebe um ELEMENTO e uma LISTA, nessa ordem. Trocar os dois em Racket
+ não dá erro - produz pares impróprios aninhados, '((((() . 1) . 2) . 3) .
+ 4), que só vão quebrar em outro lugar. Em SML, acc :: cabeca simplesmente
+ não compila, e o compilador explica por quê. Mais um ponto para o Tema 66.
+
+ EXERCÍCIOS
+ ----------
+
+ 73.1 Rode as duas medições e anote os tempos na sua máquina. Depois repita
+      com 40 000 elementos e confira a previsão "quatro vezes / duas vezes".
+ 73.2 Faça a expansão, como no quadro acima, de (reverse-acc '(a b c) '(x
+      y)). O que essa chamada calcula?
+ 73.3 Quantos cons my-reverse faz para uma lista de 4 elementos? Conte também
+      os cons dentro de cada append.
+ 73.4 Racket já tem reverse, e SML já tem rev. Escreva uma linha em cada
+      linguagem que confirma que elas dão o mesmo resultado que as suas.
+
+===============================================================================
+ TEMA 74 - LISTAS COMO RESULTADO: A ORDEM SAI INVERTIDA
+===============================================================================
+
+ O exercício 73.2 já denunciou um efeito colateral: acumular uma lista com
+ cons INVERTE a ordem. Em reverse, isso era o objetivo. Nas outras funções
+ que devolvem listas, é um problema. Veja dobrar (Tema 24) com acumulador,
+ escrita sem pensar:
+
+     (define (dobrar-acc-errado l acc)
+       (if (null? l)
+           acc
+           (dobrar-acc-errado (cdr l) (cons (* 2 (car l)) acc))))
+
+     fun dobrarAccErrado ([] : int list, acc : int list) : int list = acc
+       | dobrarAccErrado (cabeca :: cauda : int list, acc : int list) : int list =
+             dobrarAccErrado (cauda, 2 * cabeca :: acc);
+
+     (dobrar-acc-errado '(6 7 1 -3 0) '())
+     >>> '(0 -6 2 14 12)
+
+     dobrarAccErrado ([6, 7, 1, ~3, 0], []);
+     val it = [0,~6,2,14,12] : int list
+
+ Os dobros estão todos certos - de trás para frente. É o reverse-acc do tema
+ anterior, só que dobrando cada elemento no caminho.
+
+ A correção padrão é aceitar a inversão e DESFAZÊ-LA uma vez, no caso base.
+ Inverter com acumulador custa n passos (Tema 73), então o total continua
+ proporcional a n:
+
+     (define (dobrar-acc l acc)
+       (if (null? l)
+           (reverse-it acc)
+           (dobrar-acc (cdr l) (cons (* 2 (car l)) acc))))
+
+     fun dobrarAcc ([] : int list, acc : int list) : int list = inverterIt acc
+       | dobrarAcc (cabeca :: cauda : int list, acc : int list) : int list =
+             dobrarAcc (cauda, 2 * cabeca :: acc);
+
+     (dobrar-acc '(6 7 1 -3 0) '())
+     >>> '(12 14 2 -6 0)
+
+ O mesmo padrão - "acumula de trás para frente, inverte no fim" - vale para
+ my-map (Tema 28) e para my-filter (Tema 35):
+
+     (define (my-map-acc f l acc)
+       (if (null? l)
+           (reverse-it acc)
+           (my-map-acc f (cdr l) (cons (f (car l)) acc))))
+
+     (define (my-filter-acc p l acc)
+       (if (null? l)
+           (reverse-it acc)
+           (if (p (car l))
+               (my-filter-acc p (cdr l) (cons (car l) acc))
+               (my-filter-acc p (cdr l) acc))))
+
+     fun mapAcc (f : 'a -> 'b, [] : 'a list, acc : 'b list) : 'b list = inverterIt acc
+       | mapAcc (f : 'a -> 'b, cabeca :: cauda : 'a list, acc : 'b list) : 'b list =
+             mapAcc (f, cauda, f cabeca :: acc);
+
+     fun filtrarAcc (p : 'a -> bool, [] : 'a list, acc : 'a list) : 'a list =
+             inverterIt acc
+       | filtrarAcc (p : 'a -> bool, cabeca :: cauda : 'a list, acc : 'a list) : 'a list =
+             if p cabeca then filtrarAcc (p, cauda, cabeca :: acc)
+             else filtrarAcc (p, cauda, acc);
+
+     (my-map-acc add1 '(4 3 8) '())
+     >>> '(5 4 9)
+     (my-filter-acc even? '(2 3 4 6 7 10) '())
+     >>> '(2 4 6 10)
+
+     mapAcc (fn (x : int) => x + 1, [4, 3, 8], []);
+     val it = [5,4,9] : int list
+     filtrarAcc (fn (x : int) => x mod 2 = 0, [2, 3, 4, 6, 7, 10], []);
+     val it = [2,4,6,10] : int list
+
+ Repare no tipo de mapAcc: o acumulador é uma 'b list, e não uma 'a list. Ele
+ guarda RESULTADOS de f, que podem ser de outro tipo. A anotação obriga você
+ a pensar nisso - em Racket, o mesmo fato existe, mas ninguém pergunta.
+
+ VALE A PENA?
+ ------------
+
+ Para funções que devolvem listas, o ganho do acumulador é menor do que em
+ reverse. A versão sem acumulador de dobrar já fazia n passos; a com
+ acumulador faz 2n (n para acumular, n para inverter). O que se ganha é o
+ formato iterativo: nada fica pendente na pilha de chamadas. Em linguagens
+ que limitam o tamanho dessa pilha, isso é a diferença entre funcionar e
+ quebrar com listas grandes. Racket e SML/NJ são generosos com a pilha, então
+ aqui a escolha é mais de estilo - mas o padrão "acumula e inverte" aparece
+ em código de produção o tempo todo, e é bom saber reconhecê-lo.
+
+ EXERCÍCIOS
+ ----------
+
+ 74.1 Escreva quadrados-acc / quadradosAcc (exercício 25.1) com acumulador.
+ 74.2 Escreva remove-todos-acc / removeTodosAcc (Tema 34).
+ 74.3 Escreva gaguinho-acc / gaguinhoAcc (Tema 36). Cuidado: com dois cons no
+      acumulador, em que ordem eles devem entrar, já que tudo será invertido
+      no fim?
+ 74.4 Por que filtrarAcc precisa da inversão no fim, se ela não transforma
+      nenhum elemento?
+
+===============================================================================
+ TEMA 75 - QUANDO A ORDEM INVERTIDA É UMA VANTAGEM
+===============================================================================
+
+ Há casos em que a inversão trabalha a seu favor. Dois exemplos.
+
+ ENUMERAR: CONSTRUIR DE TRÁS PARA FRENTE
+ ---------------------------------------
+
+ enumerar (exercício 58.6) devolve '(1 2 ... n). A recursão é sobre o NÚMERO.
+ Se a contagem for de n para baixo, o primeiro número a entrar no acumulador
+ é n, que vai para o fundo; o último é 1, que fica na frente. A lista já sai
+ na ordem certa, sem inversão nenhuma:
+
+     (define (enumerar-acc n acc)
+       (if (zero? n)
+           acc
+           (enumerar-acc (sub1 n) (cons n acc))))
+
+     fun enumerarAcc (0 : int, acc : int list) : int list = acc
+       | enumerarAcc (n : int, acc : int list) : int list =
+             enumerarAcc (n - 1, n :: acc);
+
+     (enumerar-acc 5 '())
+     >>> '(1 2 3 4 5)
+
+     enumerarAcc (5, []);
+     val it = [1,2,3,4,5] : int list
+
+ A primeira cláusula da versão SML casa um LITERAL: 0 é um padrão, igual a
+ []. É o mesmo mecanismo do Tema 51.
+
+ APPEND: O ACUMULADOR NÃO PRECISA COMEÇAR VAZIO
+ ----------------------------------------------
+
+ O exercício 73.2 pediu (reverse-acc '(a b c) '(x y)). O resultado, '(c b a x
+ y), é "a primeira lista invertida, seguida da segunda". Então, para JUNTAR
+ duas listas, basta inverter a primeira e passá-la por reverse-acc com a
+ segunda como acumulador inicial - a segunda inversão desfaz a primeira:
+
+     (define (my-append-it l1 l2)
+       (reverse-acc (reverse-it l1) l2))
+
+     fun juntarIt (l1 : 'a list, l2 : 'a list) : 'a list =
+         inverterAcc (inverterIt l1, l2);
+
+     (my-append-it '(4 5) '(10 15))
+     >>> '(4 5 10 15)
+
+     juntarIt ([4, 5], [10, 15]);
+     val it = [4,5,10,15] : int list
+
+ Essa operação - "inverter a primeira e pendurar a segunda" - é tão útil que
+ a biblioteca de SML tem um nome para ela: List.revAppend.
+
+     List.revAppend ([3, 2, 1], [4, 5]);
+     val it = [1,2,3,4,5] : int list
+
+ CUIDADO - O VALOR INICIAL DO ACUMULADOR É UM PARÂMETRO DE VERDADE
+ -----------------------------------------------------------------
+
+ Até o Tema 74, o valor inicial era sempre o "neutro": 0, #t, '().
+ my-append-it é o primeiro exemplo em que ele é um DADO - a lista l2. Lembre
+ do CUIDADO do Tema 69: (somar-acc l 100) era um erro porque se esperava 0;
+ (reverse-acc l1 l2) é a intenção. A diferença não está no código, está no
+ significado que você deu ao acumulador.
+
+ EXERCÍCIOS
+ ----------
+
+ 75.1 Escreva intervalo-acc / intervaloAcc, que devolve '(a a+1 ... b), sem
+      inverter no fim.
+ 75.2 Escreva my-take-acc / takeAcc (Tema 40) com acumulador. Precisa
+      inverter no fim?
+ 75.3 Escreva achatar-it / achatarIt, que achata uma lista de listas
+      (exercício 41.2), usando reverse-acc como peça. Dica: percorra as
+      listas internas acumulando cada uma, invertida, no acumulador - e
+      inverta tudo uma única vez no fim.
+ 75.4 Racket não tem revAppend com esse nome. Procure na documentação se
+      existe algo equivalente (procure por append-reverse, da SRFI 1).
+
+===============================================================================
+ TEMA 76 - O PADRÃO POR TRÁS DE TUDO: FOLDL
+===============================================================================
+
+ Ponha lado a lado o que você escreveu nos Temas 69, 71 e 73:
+
+     (define (somar-acc l acc)
+       (if (null? l) acc (somar-acc            (cdr l) (+ acc (car l)))))
+
+     (define (contar-elementos-acc l acc)
+       (if (null? l) acc (contar-elementos-acc (cdr l) (add1 acc))))
+
+     (define (reverse-acc l acc)
+       (if (null? l) acc (reverse-acc          (cdr l) (cons (car l) acc))))
+
+ As três são A MESMA FUNÇÃO. Só muda o jeito de calcular o novo acumulador a
+ partir da cabeça e do acumulador velho:
+
+     somar               (car l), acc  ->  (+ acc (car l))
+     contar-elementos    (car l), acc  ->  (add1 acc)
+     reverse             (car l), acc  ->  (cons (car l) acc)
+
+ É a mesma situação do Tema 28, quando dobrar e quadrados tinham o mesmo
+ esqueleto e a diferença virou parâmetro. Fazendo de novo: a operação vira um
+ parâmetro f, uma função de DOIS argumentos - o elemento e o acumulador - que
+ devolve o novo acumulador.
+
+     (define (my-foldl f acc l)
+       (if (null? l)
+           acc
+           (my-foldl f (f (car l) acc) (cdr l))))
+
+     fun meuFoldl (f : 'a * 'b -> 'b) (acc : 'b) ([] : 'a list) : 'b = acc
+       | meuFoldl (f : 'a * 'b -> 'b) (acc : 'b) (cabeca :: cauda : 'a list) : 'b =
+             meuFoldl f (f (cabeca, acc)) cauda;
+
+     val meuFoldl = fn : ('a * 'b -> 'b) -> 'b -> 'a list -> 'b
+
+ Leia o tipo, como no Tema 61:
+
+     ('a * 'b -> 'b)  ->  'b  ->  'a list  ->  'b
+      |                   |       |            |
+      |                   |       |            +-- devolve o acumulador final
+      |                   |       +-- percorre uma lista de 'a
+      |                   +-- o valor inicial do acumulador
+      +-- como combinar um elemento com o acumulador
+
+ São dois tipos diferentes, 'a e 'b, de propósito: os elementos da lista e o
+ acumulador NÃO precisam ser do mesmo tipo. Em contar-elementos, a lista pode
+ ser de strings e o acumulador é um inteiro.
+
+ Agora as três funções viram uma linha cada:
+
+     (my-foldl + 0 '(4 6 0 2))
+     >>> 12
+     (my-foldl (lambda (x acc) (add1 acc)) 0 '(5 1 4))
+     >>> 3
+     (my-foldl cons '() '(1 2 3 4))
+     >>> '(4 3 2 1)
+
+     meuFoldl (op +) 0 [4, 6, 0, 2];
+     val it = 12 : int
+     meuFoldl (fn (_, acc : int) => acc + 1) 0 [5, 1, 4];
+     val it = 3 : int
+     meuFoldl (op ::) [] [1, 2, 3, 4];
+     val it = [4,3,2,1] : int list
+
+ A terceira é a mais bonita: reverse é foldl com cons. Em Racket, cons já
+ recebe (elemento, lista) na ordem certa; em SML, op :: transforma o operador
+ infixo em função de um par (Tema 63).
+
+ O FOLDL QUE JÁ EXISTE
+ ---------------------
+
+ As duas linguagens já têm foldl, com EXATAMENTE os argumentos que você
+ acabou de escrever, na mesma ordem: a função (que recebe elemento e
+ acumulador), o valor inicial, a lista.
+
+     (foldl cons '() '(1 2 3 4))
+     >>> '(4 3 2 1)
+
+     foldl (op ::) [] [1, 2, 3, 4];
+     val it = [4,3,2,1] : int list
+     foldl;
+     val it = fn : ('a * 'b -> 'b) -> 'b -> 'a list -> 'b
+
+ O tipo de foldl na biblioteca é idêntico ao de meuFoldl. Você reinventou a
+ função da biblioteca - que é o objetivo.
+
+ CUIDADO - A ORDEM DOS ARGUMENTOS DE F: ELEMENTO PRIMEIRO, ACUMULADOR DEPOIS
+ ---------------------------------------------------------------------------
+
+ Em Racket e em SML, a função passada a foldl recebe (elemento acumulador),
+ nessa ordem. Em my-foldl com -, isso aparece: (my-foldl - 0 '(1 2 3))
+ calcula (- 3 (- 2 (- 1 0))), e não ((0 - 1) - 2) - 3. Outras linguagens
+ escolheram a ordem oposta - Haskell, Python e JavaScript passam o acumulador
+ PRIMEIRO. Quando trocar de linguagem, confira na documentação antes de
+ confiar na memória.
+
+ EXERCÍCIOS
+ ----------
+
+ 76.1 Escreva produto usando foldl, nas duas linguagens.
+ 76.2 Escreva contar (Tema 21) usando foldl. Dica: a função passada a foldl
+      pode usar x, que é parâmetro de contar.
+ 76.3 Escreva maior usando foldl. Qual valor inicial você usou? (Volte ao
+      71.1.)
+ 76.4 Qual é o tipo de foldl (op ::) []? Responda antes de perguntar ao REPL.
+ 76.5 Rode (foldl - 0 '(1 2 3)) e explique o resultado com o CUIDADO acima.
+
+===============================================================================
+ TEMA 77 - O GÊMEO SEM ACUMULADOR: FOLDR
+===============================================================================
+
+ E as funções do jeito antigo, sem acumulador? Elas também têm um esqueleto
+ comum - foi isso que a tabela do Tema 23 começou a mostrar:
+
+     (define (somar l)
+       (if (null? l) 0   (+    (car l) (somar (cdr l)))))
+     (define (dobrar l)
+       (if (null? l) '() (cons (* 2 (car l)) (dobrar (cdr l)))))
+
+ Mudam duas coisas: o valor do caso base e a função que combina a cabeça com
+ o resultado da recursão. As duas viram parâmetros:
+
+     (define (my-foldr f inicial l)
+       (if (null? l)
+           inicial
+           (f (car l) (my-foldr f inicial (cdr l)))))
+
+     fun meuFoldr (f : 'a * 'b -> 'b) (inicial : 'b) ([] : 'a list) : 'b = inicial
+       | meuFoldr (f : 'a * 'b -> 'b) (inicial : 'b) (cabeca :: cauda : 'a list) : 'b =
+             f (cabeca, meuFoldr f inicial cauda);
+
+ O tipo é IDÊNTICO ao de foldl. A diferença não está no que entra e sai, está
+ na ordem em que as coisas são combinadas. A melhor forma de ver é escrever a
+ lista com cons explícito (Tema 17):
+
+     '(1 2 3)  =  (cons 1 (cons 2 (cons 3 '())))
+
+     (foldr f ini '(1 2 3))  =  (f 1 (f 2 (f 3 ini)))
+     (foldl f ini '(1 2 3))  =  (f 3 (f 2 (f 1 ini)))
+
+ foldr faz uma coisa quase mecânica: troca cada cons por f e o '() do fim por
+ ini. A estrutura da expressão é a estrutura da lista - por isso foldr
+ combina A PARTIR DA DIREITA (o "r" é de right). foldl combina a partir da
+ esquerda (left): o primeiro elemento é o primeiro a ser combinado com o
+ acumulador, e por isso fica no fundo da expressão.
+
+ Com +, a ordem não importa: (+ 1 (+ 2 (+ 3 0))) e (+ 3 (+ 2 (+ 1 0))) dão 6.
+ Com cons, importa tudo:
+
+     (foldr cons '() '(1 2 3 4))
+     >>> '(1 2 3 4)
+     (foldl cons '() '(1 2 3 4))
+     >>> '(4 3 2 1)
+
+     foldr (op ::) [] [1, 2, 3, 4];
+     val it = [1,2,3,4] : int list
+     foldl (op ::) [] [1, 2, 3, 4];
+     val it = [4,3,2,1] : int list
+
+ foldr cons '() troca cada cons por... cons. Devolve uma cópia da lista.
+ foldl cons '() devolve a lista invertida.
+
+ Com -, que não é comutativa nem associativa:
+
+     (foldl - 0 '(1 2 3 4))
+     >>> 2
+     (foldr - 0 '(1 2 3 4))
+     >>> -2
+
+     foldl (op -) 0 [1, 2, 3, 4];
+     val it = 2 : int
+     foldr (op -) 0 [1, 2, 3, 4];
+     val it = ~2 : int
+
+ QUAL DOS DOIS USAR?
+ -------------------
+
+                       foldl                             foldr
+     ----------------  --------------------------------  --------------------------------
+     processo          iterativo (linha reta)            recursivo (escada)
+     ordem             a partir da esquerda              a partir da direita
+     com cons          inverte a lista                   preserva a ordem
+     é a abstração de  somar-acc, reverse-acc, ...       somar, dobrar, my-map, my-filter
+
+ Regra prática: se a operação é comutativa e associativa (+, *, max, and,
+ or), as duas dão o mesmo resultado, e foldl é preferível por ser iterativa.
+ Se o resultado é uma lista na mesma ordem da original, foldr é a escolha
+ natural.
+
+ CUIDADO - EM SML, FOLDR (OP -) E FOLDL (OP -) RECEBEM UM PAR
+ ------------------------------------------------------------
+
+ (op -) em SML é a função fn (a, b) => a - b, de um par. Como foldl passa
+ (elemento, acumulador), a conta de foldl (op -) 0 [1, 2, 3, 4] é 4 - (3 - (2
+ - (1 - 0))), e não ((((0 - 1) - 2) - 3) - 4). É a mesma ordem de Racket - a
+ escolha foi a mesma nas duas linguagens.
+
+ EXERCÍCIOS
+ ----------
+
+ 77.1 Escreva, no papel, a expansão de (foldr - 0 '(1 2 3 4)) e de (foldl - 0
+      '(1 2 3 4)) e confira os dois resultados acima.
+ 77.2 Rode (trace my-foldr) e (trace my-foldl) com + e uma lista de quatro
+      elementos. Qual gera escada e qual gera linha reta?
+ 77.3 Escreva my-append (Tema 37) usando foldr, sem recursão explícita. Dica:
+      qual é o valor inicial? (Volte ao CUIDADO do Tema 75.)
+ 77.4 Escreva dobrar usando foldr, nas duas linguagens.
+
+===============================================================================
+ TEMA 78 - REDUCE, FOLD, INJECT, AGGREGATE: UMA IDEIA, MUITOS NOMES
+===============================================================================
+
+ O que você acabou de escrever é uma das funções mais difundidas da
+ programação. Quase toda linguagem com funções de ordem superior tem uma -
+ com nomes e ordens de argumentos diferentes:
+
+     linguagem          nome(s)                            exemplo
+     -----------------  ---------------------------------  ----------------------------------
+     Racket             foldl, foldr                       (foldl + 0 '(1 2 3))
+     Standard ML        foldl, foldr                       foldl (op +) 0 [1,2,3]
+     Haskell            foldl, foldr                       foldl (+) 0 [1,2,3]
+     OCaml              List.fold_left, List.fold_right    List.fold_left (+) 0 [1;2;3]
+     Common Lisp        reduce                             (reduce #'+ '(1 2 3))
+     Clojure            reduce                             (reduce + 0 [1 2 3])
+     Python             functools.reduce                   reduce(lambda a, x: a + x, [1,2,3], 0)
+     JavaScript         reduce, reduceRight                [1,2,3].reduce((a, x) => a + x, 0)
+     Ruby               inject, reduce                     [1,2,3].inject(0) { |a, x| a + x }
+     Smalltalk          inject:into:                       #(1 2 3) inject: 0 into: [:a :x | a + x]
+     Java (Streams)     reduce, collect                    Stream.of(1,2,3).reduce(0, Integer::sum)
+     C#  (LINQ)         Aggregate                          new[]{1,2,3}.Aggregate(0, (a, x) => a + x)
+     C++                std::accumulate                    std::accumulate(v.begin(), v.end(), 0)
+     Scala              foldLeft, foldRight, reduce        List(1,2,3).foldLeft(0)(_ + _)
+     APL                /  (o operador "reduce")           +/ 1 2 3
+
+ Os nomes contam a mesma história por ângulos diferentes. FOLD (dobrar): a
+ lista é dobrada sobre si mesma até virar um valor só. REDUCE (reduzir): a
+ lista é reduzida a um valor. INJECT (injetar, no Smalltalk e no Ruby): o
+ valor inicial é injetado e passa por todos os elementos. ACCUMULATE e
+ AGGREGATE: o nome do próprio acumulador.
+
+ REDUCE SEM VALOR INICIAL
+ ------------------------
+
+ Repare em Common Lisp: (reduce #'+ '(1 2 3)), sem o 0. Várias linguagens
+ oferecem uma versão em que o valor inicial é o PRIMEIRO ELEMENTO da lista -
+ a mesma ideia do exercício 71.1, com maior. É cômodo quando não existe
+ neutro óbvio, mas tem um preço: com a lista vazia, não há primeiro elemento,
+ e a função quebra (em Python, reduce(f, []) levanta TypeError; em
+ JavaScript, [].reduce(f) também). É o mesmo dilema de maiorDe e o raise
+ Empty do Tema 57.
+
+ MAPREDUCE
+ ---------
+
+ Em 2004, dois engenheiros do Google, Jeffrey Dean e Sanjay Ghemawat,
+ publicaram um artigo chamado "MapReduce: Simplified Data Processing on Large
+ Clusters". A ideia: para processar terabytes de dados espalhados por
+ milhares de máquinas, o programador escreve só duas funções - uma para
+ aplicar a cada registro (map) e uma para combinar os resultados (reduce). O
+ artigo diz textualmente que a inspiração veio das primitivas map e reduce de
+ Lisp e outras linguagens funcionais. Isto é, das funções dos Temas 28 e 76.
+ A condição para a mágica funcionar em paralelo é a mesma da regra prática do
+ Tema 77: se a operação de combinação é associativa, a ordem em que as
+ máquinas terminam o trabalho não muda a resposta.
+
+ CUIDADO - COLLECT NÃO SIGNIFICA A MESMA COISA EM TODA LINGUAGEM
+ ---------------------------------------------------------------
+
+ Em Java (Streams), collect é de fato uma redução: ela junta os elementos em
+ uma coleção ou em um valor, stream.collect(Collectors.toList()). Mas em
+ Smalltalk e em Ruby, collect é o MAP - aplica uma função a cada elemento e
+ devolve a lista de resultados; a redução lá se chama inject. Em Racket,
+ for/list é um map, e for/fold é um fold. Nomes viajam mal entre linguagens.
+ O que não muda é o TIPO: se a função recebe uma lista e devolve UM valor
+ acumulado, é um fold, chame-se como se chamar.
+
+ EXERCÍCIOS
+ ----------
+
+ 78.1 Escolha duas linguagens da tabela que você não conhece e descubra a
+      ordem dos argumentos da função passada ao fold: acumulador primeiro ou
+      elemento primeiro?
+ 78.2 Em JavaScript, qual é a diferença entre reduce e reduceRight? Relacione
+      com foldl e foldr.
+ 78.3 Escreva em Racket uma reduce sem valor inicial, que usa o primeiro
+      elemento: (my-reduce + '(1 2 3)) deve devolver 6. Use foldl dentro
+      dela. O que ela deve fazer com '()?
+ 78.4 Por que somar uma lista com MapReduce dá certo, mas subtrair não daria?
+
+===============================================================================
+ TEMA 79 - TUDO É FOLD
+===============================================================================
+
+ Volte às funções dos Temas 20 a 40. Quase todas são um foldl ou um foldr com
+ a função e o valor inicial certos. Alguns exemplos, nas duas linguagens:
+
+     (define (somar-f l)            (foldl + 0 l))
+     (define (contar-elementos-f l) (foldl (lambda (x acc) (add1 acc)) 0 l))
+     (define (reverse-f l)          (foldl cons '() l))
+     (define (my-map-f f l)         (foldr (lambda (x acc) (cons (f x) acc)) '() l))
+     (define (my-filter-f p l)      (foldr (lambda (x acc) (if (p x) (cons x acc) acc)) '() l))
+     (define (existe-f? p l)        (foldl (lambda (x acc) (or acc (p x))) #f l))
+
+     fun somarF (l : int list) : int = foldl (op +) 0 l;
+     fun comprimentoF (l : 'a list) : int = foldl (fn (_, acc : int) => acc + 1) 0 l;
+     fun inverterF (l : 'a list) : 'a list = foldl (op ::) [] l;
+     fun mapF (f : 'a -> 'b) (l : 'a list) : 'b list =
+         foldr (fn (x : 'a, acc : 'b list) => f x :: acc) [] l;
+     fun filtrarF (p : 'a -> bool) (l : 'a list) : 'a list =
+         foldr (fn (x : 'a, acc : 'a list) => if p x then x :: acc else acc) [] l;
+     fun existeF (p : 'a -> bool) (l : 'a list) : bool =
+         foldl (fn (x : 'a, acc : bool) => acc orelse p x) false l;
+
+ map e filter usam foldr porque devolvem listas na ordem original. As outras
+ usam foldl porque a operação não se importa com a ordem.
+
+ O ACUMULADOR PODE SER QUALQUER COISA
+ ------------------------------------
+
+ Nada obriga o acumulador a ser um número ou uma lista. Para calcular a MÉDIA
+ de uma lista em uma passada só, é preciso carregar duas coisas: a soma e a
+ quantidade. Então o acumulador é um PAR:
+
+     (define (media l)
+       (define par (foldl (lambda (x acc) (cons (+ (car acc) x) (add1 (cdr acc))))
+                          (cons 0 0)
+                          l))
+       (/ (car par) (cdr par)))
+
+     fun media (l : int list) : real =
+         let
+             val (soma, quantos) : int * int =
+                 foldl (fn (x : int, (s : int, n : int)) => (s + x, n + 1)) (0, 0) l
+         in
+             real soma / real quantos
+         end;
+
+     (media '(4 6 0 2))
+     >>> 3
+     (media '(1 2))
+     >>> 3/2
+
+     media [4, 6, 0, 2];
+     val it = 3.0 : real
+
+ Em SML, o padrão (s : int, n : int) desmonta a tupla direto nos parâmetros
+ da função anônima - o mesmo casamento de padrões do Tema 52. Em Racket, o
+ par é uma cons cell, e car/cdr fazem a desmontagem. O tipo do acumulador em
+ SML é int * int, e escrevê-lo na anotação é escrever a frase do Tema 69: "a
+ soma e a quantidade dos elementos já vistos".
+
+ A TABELA FINAL
+ --------------
+
+     função             fold     valor inicial   f (elemento, acc)
+     -----------------  -------  --------------  --------------------------------
+     somar              foldl    0               acc + x
+     produto            foldl    1               acc * x
+     contar-elementos   foldl    0               acc + 1
+     existe?            foldl    #f              acc or (p x)
+     todos?             foldl    #t              acc and (p x)
+     reverse            foldl    '()             (cons x acc)
+     my-map             foldr    '()             (cons (f x) acc)
+     my-filter          foldr    '()             se (p x), (cons x acc); senão acc
+     my-append l1 l2    foldr    l2              (cons x acc)
+     media              foldl    (0, 0)          (soma + x, n + 1)
+
+ Compare com a tabela do Tema 23, que tinha só "tipo de retorno, caso base,
+ operador". As duas últimas colunas desta são as mesmas duas colunas daquela.
+ Você passou o curso inteiro preenchendo os argumentos de um fold.
+
+ EXERCÍCIOS
+ ----------
+
+ 79.1 Escreva todos? / todosF com foldl. Ela para no primeiro elemento que
+      falha? (Volte ao 72.3.)
+ 79.2 Escreva remove-todos com foldr.
+ 79.3 Escreva maior-e-menor com foldl e um acumulador par: devolve o maior e
+      o menor elemento em uma passada só.
+ 79.4 Escreva contar-pares-e-impares, que devolve um par (quantos pares,
+      quantos ímpares).
+ 79.5 Escreva my-map com foldl e reverse. Compare com o my-map-acc do Tema
+      74: é o mesmo algoritmo?
+ 79.6 Em SML, escreva comprimento usando foldr em vez de foldl. O resultado
+      muda? E o processo?
+
+===============================================================================
+ TEMA 80 - FECHAMENTO: DUAS FORMAS DE PENSAR A MESMA RECURSÃO
+===============================================================================
+
+ O QUE VOCÊ APRENDEU A RECONHECER
+ --------------------------------
+
+                       recursão "na volta"                 recursão com acumulador
+                       (Temas 16 a 41)                     (este tutorial)
+     ----------------  ----------------------------------  ----------------------------------
+     pergunta-chave    "se a cauda já estiver resolvida,   "se acc já tem a resposta do que
+                       como combino com a cabeça?"         passou, como atualizo com a cabeça?"
+     neutro            no caso base                        no valor inicial de acc
+     operação          em volta da chamada recursiva       dentro do argumento acc
+     caso base         devolve o neutro                    devolve acc (quase sempre)
+     processo          recursivo (escada)                  iterativo (linha reta)
+     listas            saem na ordem certa                 saem invertidas
+     abstração         foldr                               foldl
+
+ Nenhum dos dois é "o certo". Para somar, os dois funcionam. Para reverse, o
+ acumulador é muito melhor. Para my-map, o jeito "na volta" é mais simples.
+ Para sem-vizinhos-iguais?, o acumulador é o jeito natural de lembrar do
+ passado.
+
+ AS PERGUNTAS DO ACUMULADOR
+ --------------------------
+
+ Quando for escrever uma função com acumulador, responda nesta ordem:
+
+   1. O que acc SIGNIFICA? (Uma frase. Sem ela, nada mais funciona.)
+   2. Qual é o valor inicial? (A resposta para "nada foi visto ainda".)
+   3. Como o acumulador é atualizado com a cabeça?
+   4. O que o caso base devolve? (Se acc é o resultado parcial, acc. Se é
+      contexto, outra coisa.)
+   5. O resultado é uma lista? Então ela sai invertida - precisa inverter no
+      fim?
+
+ E, antes de tudo isso: dá para escrever com foldl ou foldr? Se der, as
+ respostas 2 e 3 viram os dois primeiros argumentos, e a recursão já está
+ escrita.
+
+ EXERCÍCIOS FINAIS
+ -----------------
+
+ 80.1 Escolha três funções da parte 2 de recursão (Temas 29 a 40) e escreva
+      cada uma de três jeitos, nas duas linguagens: recursão "na volta", com
+      acumulador, e com fold.
+ 80.2 Escreva fatorial com acumulador, nas duas linguagens. A recursão aqui é
+      sobre um número, e não sobre uma lista. O que significa acc?
+ 80.3 Escreva fibonacci com DOIS acumuladores (os dois últimos números da
+      sequência). Compare o tempo com a versão sem acumulador, (fib (- n 1))
+      + (fib (- n 2)), para n = 30. A diferença é ainda maior que a do
+      reverse - descubra por quê.
+ 80.4 Escreva digitos, que transforma 1234 em '(1 2 3 4), com acumulador.
+      Dica: quotient e remainder em Racket, div e mod em SML. A ordem
+      invertida ajuda ou atrapalha aqui?
+ 80.5 O livro SICP, seção 1.2.1, chama de "processo iterativo" o que você
+      escreveu com acumulador. Procure o exemplo do fatorial lá e compare com
+      o seu 80.2.
+
+===============================================================================
+ FIM DO TUTORIAL DE ACUMULADORES
+===============================================================================
