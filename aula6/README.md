@@ -31,3 +31,13 @@ compilador para Forth), está na [Aula 07](../aula7/README.md).
 racket -i -e '(enter! "exemplos.rkt")'    # dentro de acumuladores/
 sml exemplos.sml                          # dentro de acumuladores/
 ```
+
+## Exemplo feito em aula: nota fiscal
+
+- [`nota-fiscal.rkt`](nota-fiscal.rkt) - o total de uma nota fiscal (itens
+  com quantidade, preço e imposto) com `filter`, `map` e `foldl`, passo a
+  passo. Repare no `27.500000000000004`: dinheiro em ponto flutuante.
+- [`nota-fiscal-threading.rkt`](nota-fiscal-threading.rkt) - o mesmo cálculo
+  como pipeline, com uma macro `->>` à moda de Clojure escrita em 5 linhas, e
+  preços em centavos para as contas ficarem exatas. (Pronta para uso, há o
+  pacote `threading`: `raco pkg install threading`, que traz `~>` e `~>>`.)
