@@ -18,6 +18,9 @@ $RECYCLE.BIN/
 # ---- Ferramentas ----
 .claude/settings.local.json
 
+# ---- Notas locais, fora do repositorio ----
+*.hidden.md
+
 # ---- Repositorios proprios (nao fazem parte deste repo) ----
 pl-quiz/
 mobile/
